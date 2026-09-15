@@ -1,4 +1,4 @@
-import { NodeSdk } from "@effect/opentelemetry"
+import * as NodeSdk from "@effect/opentelemetry/NodeSdk"
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http"
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 import { BatchLogRecordProcessor, ConsoleLogRecordExporter } from "@opentelemetry/sdk-logs"
