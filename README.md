@@ -14,7 +14,10 @@ Trigger (cron | once | future: PocketBase, HTTP, ...)
 ```
 
 Spans nest as `trigger.*` → `run.*` → `workflow.*` → `function.*`.
-`Effect.log` inside functions is exported as span events by the OTel layer.
+`Effect.log` is exported twice: as OTel log records (console exporter locally,
+OTLP `.../v1/logs` when `OTEL_EXPORTER_OTLP_ENDPOINT` is set) and as span
+events on the enclosing span — giving both searchable streams and correlated
+waterfall context.
 
 ## Scripts
 
