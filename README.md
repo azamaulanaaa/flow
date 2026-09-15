@@ -52,6 +52,10 @@ npm start
 - `src/config.ts`, `src/otel.ts` – env config, OTel SDK layer
 - `test/` – Vitest + `@effect/vitest` suites per module
 
+Internal imports use the `@/` alias for `src/` (extensionless, e.g.
+`@/functions/registry`), mapped in `tsconfig.json` and resolved by Vitest,
+tsup (build) and tsx (dev).
+
 ## License
 
 Dual-licensed under [MIT](LICENSE-MIT) and [Apache 2.0](LICENSE-APACHE).

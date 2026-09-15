@@ -1,14 +1,14 @@
 import { NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import type { Scope } from "effect/Scope"
-import { AppConfigLive, AppConfigService } from "./config.js"
-import { exampleFunctions } from "./functions/examples.js"
-import { FunctionRegistry, FunctionRegistryLive } from "./functions/registry.js"
-import { OtelLive } from "./otel.js"
-import { RuntimeBus, RuntimeBusLive } from "./runtime/bus.js"
-import { startRuntime, WorkflowCatalog, WorkflowCatalogLive } from "./runtime/service.js"
-import { makeCronTrigger } from "./triggers/cron.js"
-import { exampleWorkflows } from "./workflows/examples.js"
+import { AppConfigLive, AppConfigService } from "@/config"
+import { exampleFunctions } from "@/functions/examples"
+import { FunctionRegistry, FunctionRegistryLive } from "@/functions/registry"
+import { OtelLive } from "@/otel"
+import { RuntimeBus, RuntimeBusLive } from "@/runtime/bus"
+import { startRuntime, WorkflowCatalog, WorkflowCatalogLive } from "@/runtime/service"
+import { makeCronTrigger } from "@/triggers/cron"
+import { exampleWorkflows } from "@/workflows/examples"
 
 /** Bus capacity comes from env config so deploys can tune backpressure. */
 const RuntimeBusFromConfigLive: Layer.Layer<RuntimeBus, never, AppConfigService> = Layer.unwrapEffect(

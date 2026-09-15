@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Fiber, Layer, Queue, TestClock } from "effect"
-import { RuntimeBus, RuntimeBusLive } from "../src/runtime/bus.js"
-import { makeCronTrigger } from "../src/triggers/cron.js"
+import { RuntimeBus, RuntimeBusLive } from "@/runtime/bus"
+import { makeCronTrigger } from "@/triggers/cron"
 
 const TestLayers = RuntimeBusLive(16)
 

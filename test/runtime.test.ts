@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, PubSub, Queue } from "effect"
-import { FunctionRegistryLive, makeFunction } from "../src/functions/registry.js"
-import { RuntimeBus, RuntimeBusLive, submitRun } from "../src/runtime/bus.js"
-import { WorkflowCatalogLive, startRuntime } from "../src/runtime/service.js"
-import type { WorkflowDef } from "../src/workflows/definition.js"
+import { FunctionRegistryLive, makeFunction } from "@/functions/registry"
+import { RuntimeBus, RuntimeBusLive, submitRun } from "@/runtime/bus"
+import { WorkflowCatalogLive, startRuntime } from "@/runtime/service"
+import type { WorkflowDef } from "@/workflows/definition"
 
 const TestRegistryLive = FunctionRegistryLive([
   makeFunction("ping", () => Effect.succeed("pong")),

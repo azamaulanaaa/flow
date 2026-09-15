@@ -1,9 +1,9 @@
 import { Cause, Context, Effect, Layer, PubSub, Queue } from "effect"
 import type { Scope } from "effect/Scope"
-import { FunctionRegistry } from "../functions/registry.js"
-import { runWorkflow, type WorkflowOutputs } from "../workflows/runner.js"
-import type { WorkflowDef } from "../workflows/definition.js"
-import { RuntimeBus, type RunEvent, type RunRequest } from "./bus.js"
+import { FunctionRegistry } from "@/functions/registry"
+import { runWorkflow, type WorkflowOutputs } from "@/workflows/runner"
+import type { WorkflowDef } from "@/workflows/definition"
+import { RuntimeBus, type RunEvent, type RunRequest } from "@/runtime/bus"
 
 export class WorkflowCatalog extends Context.Tag("WorkflowCatalog")<
   WorkflowCatalog,

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
-import { exampleFunctions } from "../src/functions/examples.js"
+import { exampleFunctions } from "@/functions/examples"
 import {
   FunctionRegistryLive,
   UnknownFunctionError,
   lookupFunction,
   runFunction,
-} from "../src/functions/registry.js"
+} from "@/functions/registry"
 
 const TestRegistryLive = FunctionRegistryLive([...exampleFunctions])
 

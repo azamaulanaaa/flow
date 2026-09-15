@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
-import { FunctionRegistryLive, makeFunction } from "../src/functions/registry.js"
-import { planWorkflow, type WorkflowDef } from "../src/workflows/definition.js"
-import { runWorkflow } from "../src/workflows/runner.js"
+import { FunctionRegistryLive, makeFunction } from "@/functions/registry"
+import { planWorkflow, type WorkflowDef } from "@/workflows/definition"
+import { runWorkflow } from "@/workflows/runner"
 
 const constFn = (name: string, value: unknown) => makeFunction(name, () => Effect.succeed(value))
 

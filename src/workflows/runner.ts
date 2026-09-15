@@ -1,6 +1,6 @@
 import { Effect } from "effect"
-import { FunctionRegistry, runFunction } from "../functions/registry.js"
-import { planWorkflow, resolveNodeInput, type WorkflowDef, type WorkflowNode } from "./definition.js"
+import { FunctionRegistry, runFunction } from "@/functions/registry"
+import { planWorkflow, resolveNodeInput, type WorkflowDef, type WorkflowNode } from "@/workflows/definition"
 
 export type WorkflowOutputs = ReadonlyMap<string, unknown>
 

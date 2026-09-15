@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { makeFunction } from "./registry.js"
+import { makeFunction } from "@/functions/registry"
 
 export interface GreetInput {
   readonly name: string

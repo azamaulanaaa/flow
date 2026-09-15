@@ -1,4 +1,4 @@
-import type { WorkflowDef } from "./definition.js"
+import type { WorkflowDef } from "@/workflows/definition"
 
 export const welcomeWorkflow: WorkflowDef = {
   name: "welcome",
