@@ -6,6 +6,7 @@ export interface AppConfig {
   readonly queueCapacity: number
   readonly cronExpression: string
   readonly otlpEndpoint: string | undefined
+  readonly shutdownTimeoutMs: number
 }
 
 export class AppConfigService extends Context.Tag("AppConfigService")<
@@ -18,6 +19,7 @@ const AppConfigFromEnv = Config.all({
   logLevel: Config.string("LOG_LEVEL").pipe(Config.withDefault("INFO")),
   queueCapacity: Config.integer("QUEUE_CAPACITY").pipe(Config.withDefault(128)),
   cronExpression: Config.string("CRON_EXPRESSION").pipe(Config.withDefault("*/1 * * * *")),
+  shutdownTimeoutMs: Config.integer("SHUTDOWN_TIMEOUT_MS").pipe(Config.withDefault(10_000)),
   otlpEndpoint: Config.option(Config.string("OTEL_EXPORTER_OTLP_ENDPOINT")).pipe(
     Config.map((o) => (o._tag === "Some" ? o.value : undefined)),
   ),

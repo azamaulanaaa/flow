@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, PubSub, Queue } from "effect"
+import { Context, Effect, Layer, PubSub, Queue, Ref } from "effect"
 
 /** Request to execute a workflow, produced by triggers. */
 export interface RunRequest {
@@ -21,6 +21,8 @@ export type RunEvent =
 export interface RuntimeBusShape {
   readonly queue: Queue.Queue<RunRequest>
   readonly events: PubSub.PubSub<RunEvent>
+  /** In-flight run count, for graceful drain on shutdown. */
+  readonly inflight: Ref.Ref<number>
 }
 
 export class RuntimeBus extends Context.Tag("RuntimeBus")<RuntimeBus, RuntimeBusShape>() {}
@@ -35,7 +37,8 @@ export const RuntimeBusLive = (queueCapacity = 128): Layer.Layer<RuntimeBus> =>
     Effect.gen(function* () {
       const queue = yield* Queue.bounded<RunRequest>(queueCapacity)
       const events = yield* PubSub.dropping<RunEvent>(256)
-      return { queue, events }
+      const inflight = yield* Ref.make(0)
+      return { queue, events, inflight }
     }),
   )
 

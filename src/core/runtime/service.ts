@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, PubSub, Queue } from "effect"
+import { Cause, Context, Effect, Layer, PubSub, Queue, Ref } from "effect"
 import type { Scope } from "effect/Scope"
 import { FunctionRegistry } from "@/core/functions/registry"
 import { runWorkflow, type WorkflowOutputs } from "@/core/workflows/runner"
@@ -26,6 +26,9 @@ const handleRequest = (
   request: RunRequest,
 ): Effect.Effect<void, never, RuntimeBus | WorkflowCatalog | FunctionRegistry> =>
   Effect.gen(function* () {
+    const bus = yield* RuntimeBus
+    yield* Ref.update(bus.inflight, (n) => n + 1)
+    return yield* Effect.gen(function* () {
     yield* publishEvent({
       _tag: "RunStarted",
       runId: request.runId,
@@ -55,6 +58,7 @@ const handleRequest = (
         reason: failureReason(exit.cause),
       })
     }
+    }).pipe(Effect.ensuring(Ref.update(bus.inflight, (n) => Math.max(0, n - 1))))
   }).pipe(
     Effect.withSpan(`run.${request.workflow}`, {
       attributes: {
@@ -89,4 +93,24 @@ export const startRuntime = (
       yield* Effect.forkScoped(Effect.forever(worker).pipe(Effect.withSpan("runtime.worker")))
     }
     yield* Effect.log(`Runtime started with ${count} workers`)
+  })
+
+/**
+ * Wait until the run queue is empty and no runs are in flight.
+ * Used during graceful shutdown so in-flight workflows finish before
+ * layers (OTel flush) are released. Caller should bound with a timeout.
+ */
+export const waitForIdle: Effect.Effect<void, never, RuntimeBus> =
+  Effect.gen(function* () {
+    const bus = yield* RuntimeBus
+    while (true) {
+      const size = yield* Queue.size(bus.queue)
+      const active = yield* Ref.get(bus.inflight)
+      // NB: Queue.size goes negative when workers are blocked on take
+      // (one pending taker counts as -1), so idle is size <= 0.
+      if (size <= 0 && active === 0) {
+        return
+      }
+      yield* Effect.sleep("25 millis")
+    }
   })

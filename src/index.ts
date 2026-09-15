@@ -5,7 +5,7 @@ import { AppConfigLive, AppConfigService } from "@/core/config"
 import { FunctionRegistry, FunctionRegistryLive } from "@/core/functions/registry"
 import { OtelLive } from "@/core/otel"
 import { RuntimeBus, RuntimeBusLive } from "@/core/runtime/bus"
-import { startRuntime, WorkflowCatalog, WorkflowCatalogLive } from "@/core/runtime/service"
+import { startRuntime, waitForIdle, WorkflowCatalog, WorkflowCatalogLive } from "@/core/runtime/service"
 import { makeCronTrigger } from "@/core/triggers/cron"
 import { exampleFunctions } from "@/functions"
 import { exampleWorkflows } from "@/workflows"
@@ -40,6 +40,20 @@ const program: Effect.Effect<
 
   yield* Effect.log(
     `Service ${config.serviceName} started: cron (${config.cronExpression}) -> welcome workflow`,
+  )
+  // Graceful exit: NodeRuntime interrupts Effect.never on SIGINT/SIGTERM.
+  // forkScoped children (trigger, workers) stop in LIFO order, then this
+  // finalizer drains queued + in-flight runs (bounded by shutdownTimeoutMs)
+  // before the scope releases layers (OTel flush).
+  yield* Effect.addFinalizer((exit) =>
+    Effect.gen(function* () {
+      yield* Effect.log(`Shutdown requested (${exit._tag}), draining runs...`)
+      yield* waitForIdle.pipe(
+        Effect.timeout(`${config.shutdownTimeoutMs} millis`),
+        Effect.ignore,
+      )
+      yield* Effect.log("Shutdown complete, flushing telemetry")
+    }),
   )
   // Run until the process receives SIGINT/SIGTERM (handled by NodeRuntime).
   yield* Effect.never
