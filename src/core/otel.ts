@@ -4,7 +4,7 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 import { BatchLogRecordProcessor, ConsoleLogRecordExporter } from "@opentelemetry/sdk-logs"
 import { BatchSpanProcessor, ConsoleSpanExporter } from "@opentelemetry/sdk-trace-base"
 import { Effect, Layer } from "effect"
-import { AppConfigService } from "@/config"
+import { AppConfigService } from "@/core/config"
 
 /**
  * OpenTelemetry SDK layer driven by {@link AppConfigService}.

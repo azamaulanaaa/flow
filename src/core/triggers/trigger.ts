@@ -1,6 +1,6 @@
 import type { Effect } from "effect"
 import type { Scope } from "effect/Scope"
-import type { RuntimeBus } from "@/runtime/bus"
+import type { RuntimeBus } from "@/core/runtime/bus"
 
 /**
  * A trigger produces {@link RunRequest}s from the outside world

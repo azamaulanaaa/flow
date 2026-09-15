@@ -1,6 +1,6 @@
 import { Cron, Effect, Schedule } from "effect"
-import { submitRun } from "@/runtime/bus"
-import type { Trigger } from "@/triggers/trigger"
+import { submitRun } from "@/core/runtime/bus"
+import type { Trigger } from "@/core/triggers/trigger"
 
 export interface CronTriggerOptions {
   /** Cron expression, e.g. `* * * * *` or with seconds `* * * * * *`. */
