@@ -42,6 +42,17 @@ npm start
 | `QUEUE_CAPACITY` | `128` | run-queue bound (backpressure) |
 | `CRON_EXPRESSION` | `*/1 * * * *` | schedule for the bundled cron trigger |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | OTLP HTTP endpoint; unset = console exporter |
+| `SHUTDOWN_TIMEOUT_MS` | `10000` | max wait to drain queued + in-flight runs on SIGINT/SIGTERM |
+
+## Shutdown
+
+On `SIGINT`/`SIGTERM` (`NodeRuntime.runMain` interrupts `Effect.never`):
+1. trigger + worker fibers stop in LIFO scope order (no new runs accepted),
+2. a finalizer drains the queue and in-flight runs via `waitForIdle`,
+   bounded by `SHUTDOWN_TIMEOUT_MS`,
+3. scope release flushes OTel Batch processors (spans + log records).
+
+Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry`.
 
 ## Layout — framework vs app
 
