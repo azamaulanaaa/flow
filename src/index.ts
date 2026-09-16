@@ -1,10 +1,10 @@
-import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import { Effect, Layer } from "effect"
 import type { Scope } from "effect/Scope"
 import { isMainThread, workerData } from "node:worker_threads"
 import { AppConfigLive, AppConfigService } from "@/core/config"
 import { FunctionRegistry, FunctionRegistryLive } from "@/core/functions/registry"
 import { OtelLive } from "@/core/otel"
+import { runtimeKind, runWithDenoSignals } from "@/core/platform"
 import { RuntimeBus, RuntimeBusLive } from "@/core/runtime/bus"
 import { FUNCTION_WORKER_MODE, runFunctionWorkerEntry } from "@/core/runtime/function-worker"
 import { startRuntime, waitForIdle, WorkflowCatalog, WorkflowCatalogLive } from "@/core/runtime/service"
@@ -58,7 +58,7 @@ const program: Effect.Effect<
   yield* Effect.log(
     `Service ${config.serviceName} started: cron (${config.cronExpression}) -> welcome workflow`,
   )
-  // Graceful exit: NodeRuntime interrupts Effect.never on SIGINT/SIGTERM.
+  // Graceful exit: the runner interrupts Effect.never on SIGINT/SIGTERM.
   // forkScoped children (trigger, workers) stop in LIFO order, then this
   // finalizer drains queued + in-flight runs (bounded by shutdownTimeoutMs)
   // before the scope releases layers (OTel flush).
@@ -72,7 +72,7 @@ const program: Effect.Effect<
       yield* Effect.log("Shutdown complete, flushing telemetry")
     }),
   )
-  // Run until the process receives SIGINT/SIGTERM (handled by NodeRuntime).
+  // Run until the process receives SIGINT/SIGTERM (handled by the runner below).
   yield* Effect.never
 })
 
@@ -83,9 +83,14 @@ const main = program.pipe(
 )
 
 // Worker threads boot this same entrypoint in dispatcher mode (same bundle,
-// no extra build artifact). Main thread runs the service.
+// no extra build artifact). Main thread runs the service via the
+// runtime-appropriate runner: NodeRuntime on Node/Bun (dynamic import, so
+// Deno never evaluates `@effect/platform-node`), Deno signal handling on Deno.
 if (!isMainThread && (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE) {
   await runFunctionWorkerEntry()
+} else if (runtimeKind() === "deno") {
+  await runWithDenoSignals(main)
 } else {
-  main.pipe(NodeRuntime.runMain)
+  const { runMain } = await import("@effect/platform-node/NodeRuntime")
+  main.pipe(runMain)
 }

@@ -10,8 +10,11 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --out-dir dist --sourcemap --clean",
     "start": "node dist/index.js",
+    "start:bun": "bun dist/index.js",
     "dev": "tsx src/index.ts",
+    "dev:bun": "bun src/index.ts",
     "test": "vitest run",
+    "test:bun": "bun node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "clean": "rm -rf dist"

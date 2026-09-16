@@ -57,6 +57,27 @@ On `SIGINT`/`SIGTERM` (`NodeRuntime.runMain` interrupts `Effect.never`):
 
 Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry`.
 
+## Runtimes — Node, Bun, Deno
+
+- **Node** (primary): `npm run typecheck|test|build|start`. Tests run on Node.
+- **Bun** (verified): runs TS directly with tsconfig `@/` paths, no build step.
+  ```sh
+  bun src/index.ts            # dev (replaces tsx)
+  bun dist/index.js           # built bundle
+  bun node_modules/vitest/vitest.mjs run   # tests, ~2x faster here
+  ```
+  `npm run dev:bun|start:bun|test:bun` wrap these. `NodeRuntime` is used on Bun
+  (dynamic import in `src/index.ts`), worker pool verified working.
+- **Deno** (experimental, not yet executed — needs a glibc host): `deno.json`
+  maps `@/` and provides tasks (`deno task dev|start|check`, needs
+  `--allow-all` for env/net/threads). `src/index.ts` avoids evaluating
+  `@effect/platform-node` on Deno (dynamic import on Node/Bun only) and runs
+  via `runWithDenoSignals` (`src/core/platform.ts`), which forks and
+  interrupts on `SIGINT`/`SIGTERM` so the drain + OTel flush path is shared.
+  Caveats: `node:worker_threads`/`node:os` are Deno-covered for our subset —
+  pool spawn failures fall back to in-process; OTel context via
+  `node:async_hooks` is partial on Deno, so cross-span correlation may degrade.
+
 ## Layout — framework vs app
 
 - `src/core/` – framework, do not put business logic here:
@@ -66,6 +87,7 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
   - `core/runtime/worker-pool.ts`, `function-worker.ts` – thread pool (opt-in true parallelism)
   - `core/triggers/trigger.ts`, `cron.ts` – `Trigger` interface + impls
   - `core/config.ts`, `core/otel.ts` – env config, OTel SDK layer
+  - `core/platform.ts` – runtime detection (`node`/`bun`/`deno`) + Deno signal runner
 - `src/functions/` – **put your functions here**, one file per function:
   - `greet.ts`, `add.ts` – examples using `makeFunction` from `@/core/functions/registry`
   - `index.ts` – barrel, re-export + append to `exampleFunctions`
