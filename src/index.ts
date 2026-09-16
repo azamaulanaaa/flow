@@ -49,7 +49,7 @@ const program: Effect.Effect<
 > = Effect.gen(function* () {
   const config = yield* AppConfigService
 
-  yield* startRuntime({ workers: config.runtimeWorkers })
+  yield* startRuntime({ workers: config.runtimeWorkers, workflowConcurrency: config.workflowConcurrency })
 
   const trigger = yield* makeCronTrigger({
     schedule: config.cronExpression,
