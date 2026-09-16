@@ -26,6 +26,7 @@ npm install
 npm run typecheck
 npm run test
 npm run build
+npm run format:check
 npm start
 ```
 
@@ -36,25 +37,26 @@ npm start
 
 ## Configuration (env)
 
-| Var | Default | Description |
-| --- | ------- | ----------- |
-| `SERVICE_NAME` | `workflow-runner` | OTel service name |
-| `LOG_LEVEL` | `INFO` | minimum log level (TRACE,DEBUG,INFO,WARN,ERROR,FATAL,NONE,ALL) |
-| `QUEUE_CAPACITY` | `128` | run-queue bound (backpressure) |
-| `RUNTIME_WORKERS` | `4` | runtime worker fibers draining the queue |
-| `WORKFLOW_CONCURRENCY` | `32` | max parallel nodes per DAG level + default node input comes from trigger `input` when node `input` is unset |
-| `WORKFLOW_NODE_TIMEOUT_MS` | `0` | per-node timeout in ms (`0` = disabled); fails the node with `WorkflowNodeTimeoutError`, retried per `WORKFLOW_RETRY_ATTEMPTS` |
-| `WORKFLOW_RETRY_ATTEMPTS` | `0` | extra retry attempts per node after the first try |
-| `CRON_EXPRESSION` | `*/1 * * * *` | schedule for the bundled cron trigger |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | OTLP HTTP base (`http://host:4318` -> `.../v1/traces` + `.../v1/logs`); unset = console exporter |
-| `SHUTDOWN_TIMEOUT_MS` | `10000` | max wait to drain queued + in-flight runs on SIGINT/SIGTERM |
-| `WORKER_POOL_ENABLED` | `false` | run functions in `node:worker_threads` (true multithreading for CPU-bound work) |
-| `WORKER_POOL_SIZE` | CPUs | worker thread count |
-| `WORKER_POOL_TIMEOUT_MS` | `30000` | per-function worker timeout (falls back to in-process) |
+| Var                           | Default           | Description                                                                                                                    |
+| ----------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `SERVICE_NAME`                | `workflow-runner` | OTel service name                                                                                                              |
+| `LOG_LEVEL`                   | `INFO`            | minimum log level (TRACE,DEBUG,INFO,WARN,ERROR,FATAL,NONE,ALL)                                                                 |
+| `QUEUE_CAPACITY`              | `128`             | run-queue bound (backpressure)                                                                                                 |
+| `RUNTIME_WORKERS`             | `4`               | runtime worker fibers draining the queue                                                                                       |
+| `WORKFLOW_CONCURRENCY`        | `32`              | max parallel nodes per DAG level + default node input comes from trigger `input` when node `input` is unset                    |
+| `WORKFLOW_NODE_TIMEOUT_MS`    | `0`               | per-node timeout in ms (`0` = disabled); fails the node with `WorkflowNodeTimeoutError`, retried per `WORKFLOW_RETRY_ATTEMPTS` |
+| `WORKFLOW_RETRY_ATTEMPTS`     | `0`               | extra retry attempts per node after the first try                                                                              |
+| `CRON_EXPRESSION`             | `*/1 * * * *`     | schedule for the bundled cron trigger                                                                                          |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_         | OTLP HTTP base (`http://host:4318` -> `.../v1/traces` + `.../v1/logs`); unset = console exporter                               |
+| `SHUTDOWN_TIMEOUT_MS`         | `10000`           | max wait to drain queued + in-flight runs on SIGINT/SIGTERM                                                                    |
+| `WORKER_POOL_ENABLED`         | `false`           | run functions in `node:worker_threads` (true multithreading for CPU-bound work)                                                |
+| `WORKER_POOL_SIZE`            | CPUs              | worker thread count                                                                                                            |
+| `WORKER_POOL_TIMEOUT_MS`      | `30000`           | per-function worker timeout (falls back to in-process)                                                                         |
 
 ## Shutdown
 
 On `SIGINT`/`SIGTERM` (`NodeRuntime.runMain` interrupts `Effect.never`):
+
 1. trigger + worker fibers stop in LIFO scope order (no new runs accepted),
 2. a finalizer drains the queue and in-flight runs via `waitForIdle`,
    bounded by `SHUTDOWN_TIMEOUT_MS`,
@@ -159,6 +161,7 @@ sized by `WORKER_POOL_SIZE`. Workers boot the same bundle in dispatcher mode
 registry functions by name.
 
 Rules and limits:
+
 - Only `input`/`output` cross the boundary via structured clone — keep them
   plain data. Unserializable payloads fail fast and fall back to in-process.
 - Every pool failure (disabled, dead workers, `WORKER_POOL_TIMEOUT_MS`, worker
