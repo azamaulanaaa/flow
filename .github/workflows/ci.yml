@@ -96,6 +96,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - run: deno install
       - run: deno task check
       - name: smoke (boot + graceful shutdown)
         run: |

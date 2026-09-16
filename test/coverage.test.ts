@@ -31,9 +31,10 @@ describe("RuntimeBus backpressure", () => {
 })
 
 describe("platform", () => {
-  it.effect("detects node runtime under vitest", () =>
+  it.effect("detects the current runtime", () =>
     Effect.gen(function* () {
-      expect(runtimeKind()).toBe("node")
+      const expected = "Deno" in globalThis ? "deno" : "Bun" in globalThis ? "bun" : "node"
+      expect(runtimeKind()).toBe(expected)
     }),
   )
 })
