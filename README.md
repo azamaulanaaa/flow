@@ -30,8 +30,9 @@ npm start
 ```
 
 > Note: if `npm install` fails with `EPERM ... symlink` in a restricted
-> sandbox, retry with `npm install --no-bin-links` and invoke the compiler
-> directly via `node node_modules/typescript/lib/tsc.js`.
+> sandbox, retry with `npm install --no-bin-links` and use the `:direct`
+> scripts (`npm run typecheck:direct|test:direct|build:direct`), which invoke
+> `node node_modules/...` without relying on `.bin` symlinks.
 
 ## Configuration (env)
 

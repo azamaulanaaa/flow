@@ -16,7 +16,10 @@
     "test": "vitest run",
     "test:bun": "bun node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest",
+    "test:direct": "node node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:direct": "node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json",
+    "build:direct": "node node_modules/tsup/dist/cli-default.js src/index.ts --format esm --out-dir dist --sourcemap --clean",
     "clean": "rm -rf dist"
   },
   "keywords": [],
