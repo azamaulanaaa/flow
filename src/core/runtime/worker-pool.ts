@@ -1,4 +1,6 @@
 import { Worker } from "node:worker_threads"
+import { existsSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { Context, Data, Deferred, Duration, Effect, Layer } from "effect"
 import { FUNCTION_WORKER_MODE } from "@/core/runtime/function-worker"
 import type { FunctionWorkerRequest, FunctionWorkerResponse } from "@/core/runtime/function-worker"
@@ -43,7 +45,25 @@ interface Slot {
   pending: Map<number, Deferred.Deferred<unknown, WorkerPoolError>>
   nextId: number
   dead: boolean
+  bootFailures: number
 }
+
+/** Fail fast on missing file entries instead of spawning a worker that throws async. */
+const entryFileExists = (entryUrl: URL | string): boolean => {
+  try {
+    const url = typeof entryUrl === "string" ? new URL(entryUrl) : entryUrl
+    if (url.protocol !== "file:") {
+      return true
+    }
+    return existsSync(fileURLToPath(url))
+  } catch {
+    // Non-URL strings (relative paths) — let `new Worker` decide.
+    return true
+  }
+}
+
+/** Cap rapid boot-failure respawns so a bad entry can't spam the event loop. */
+const MAX_BOOT_FAILURES = 3
 
 export interface WorkerPoolShape {
   readonly execute: (
@@ -92,9 +112,21 @@ export const WorkerPoolLive = (options: WorkerPoolOptions): Layer.Layer<WorkerPo
       }
 
       const attach = (slot: Slot): void => {
+        if (!entryFileExists(options.entryUrl)) {
+          slot.dead = true
+          return
+        }
         let worker: Worker
         try {
-          worker = new Worker(options.entryUrl, { workerData: { mode: FUNCTION_WORKER_MODE } })
+          // Pipe stdio so a crashing entry can't dump "Uncaught (in worker)"
+          // noise to the parent stderr — failures still surface via 'error'/'exit'.
+          worker = new Worker(options.entryUrl, {
+            workerData: { mode: FUNCTION_WORKER_MODE },
+            stdout: true,
+            stderr: true,
+          })
+          worker.stdout?.resume()
+          worker.stderr?.resume()
         } catch {
           slot.dead = true
           return
@@ -102,6 +134,7 @@ export const WorkerPoolLive = (options: WorkerPoolOptions): Layer.Layer<WorkerPo
         slot.worker = worker
         slot.dead = false
         worker.on("message", (message: FunctionWorkerResponse) => {
+          slot.bootFailures = 0
           const pending = slot.pending.get(message.id)
           if (pending === undefined) {
             return // late reply after a timeout; already cleaned up
@@ -115,12 +148,18 @@ export const WorkerPoolLive = (options: WorkerPoolOptions): Layer.Layer<WorkerPo
         })
         worker.on("error", (error) => {
           killSlot(slot, `worker error: ${error instanceof Error ? error.message : String(error)}`)
-          respawn(slot)
+          slot.bootFailures += 1
+          if (slot.bootFailures <= MAX_BOOT_FAILURES) {
+            respawn(slot)
+          }
         })
         worker.on("exit", (code) => {
           if (!slot.dead && !closed) {
             killSlot(slot, `worker exited with code ${code}`)
-            respawn(slot)
+            slot.bootFailures += 1
+            if (slot.bootFailures <= MAX_BOOT_FAILURES) {
+              respawn(slot)
+            }
           }
         })
       }
@@ -138,7 +177,13 @@ export const WorkerPoolLive = (options: WorkerPoolOptions): Layer.Layer<WorkerPo
       }
 
       for (let i = 0; i < size; i++) {
-        const slot: Slot = { worker: null, pending: new Map(), nextId: 1, dead: true }
+        const slot: Slot = {
+          worker: null,
+          pending: new Map(),
+          nextId: 1,
+          dead: true,
+          bootFailures: 0,
+        }
         attach(slot)
         slots.push(slot)
       }
