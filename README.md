@@ -80,7 +80,7 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
   (dynamic import in `src/index.ts`), worker pool verified working.
 - **Deno** (experimental): `deno.json` maps `@/` (trailing-slash import-map
   form — Deno has no TS `paths` wildcards) and enables `sloppy-imports` for
-  our extensionless + directory imports; tasks (`deno task dev|start|check`,
+  our extensionless + directory imports; tasks (`deno task dev|start|check|test`,
   needs `--allow-all` for env/net/threads). `src/index.ts` avoids evaluating
   `@effect/platform-node` on Deno (dynamic import on Node/Bun only) and runs
   via `runWithDenoSignals` (`src/core/platform.ts`), which forks and
