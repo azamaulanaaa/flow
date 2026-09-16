@@ -15,9 +15,12 @@ Trigger (cron | once | future: PocketBase, HTTP, ...)
 
 Spans nest as `trigger.*` → `run.*` → `workflow.*` → `function.*`.
 `Effect.log` is exported twice: as OTel log records (console exporter locally,
-OTLP `.../v1/logs` when `OTEL_EXPORTER_OTLP_ENDPOINT` is set) and as span
-events on the enclosing span — giving both searchable streams and correlated
-waterfall context.
+OTLP `.../v1/traces` + `.../v1/logs` derived from `OTEL_EXPORTER_OTLP_ENDPOINT`
+when set) and as span events on the enclosing span — giving both searchable
+streams and correlated waterfall context. `RunFailed` events carry a
+machine-readable `causeTag` (e.g. `UnknownFunctionError`,
+`WorkflowNodeTimeoutError`, `UnknownWorkflow`) alongside the human-readable
+`reason`.
 
 ## Scripts
 
@@ -91,10 +94,10 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
 - `src/core/` – framework, do not put business logic here:
   - `core/functions/registry.ts` – `makeFunction`, `FunctionRegistry`
   - `core/workflows/definition.ts`, `runner.ts` – DAG validation + parallel runner
-  - `core/runtime/bus.ts`, `service.ts` – Queue/PubSub bus + worker pool
+  - `core/runtime/bus.ts`, `service.ts` – Queue/PubSub bus + runtime workers, drain, typed failures
   - `core/runtime/worker-pool.ts`, `function-worker.ts` – thread pool (opt-in true parallelism)
   - `core/triggers/trigger.ts`, `cron.ts` – `Trigger` interface + impls
-  - `core/config.ts`, `core/otel.ts` – env config, OTel SDK layer
+  - `core/config.ts`, `core/otel.ts`, `core/logging.ts` – env config, OTel SDK layer, log-level layer
   - `core/platform.ts` – runtime detection (`node`/`bun`/`deno`) + Deno signal runner
 - `src/functions/` – **put your functions here**, one file per function:
   - `greet.ts`, `add.ts` – examples using `makeFunction` from `@/core/functions/registry`
@@ -144,7 +147,10 @@ export const myFlow: WorkflowDef = {
 ```
 
 Then register in `src/workflows/index.ts` + trigger it via cron/`makeOnceTrigger`.
-Levels run sequentially, nodes in a level run in parallel via `Effect.all`.
+Levels run sequentially, nodes in a level run in parallel via `Effect.all`
+(bounded by `WORKFLOW_CONCURRENCY`, default 32). Nodes without explicit `input`
+receive the trigger's run `input`; per-node timeout (`WORKFLOW_NODE_TIMEOUT_MS`,
+`0` = disabled) and retries (`WORKFLOW_RETRY_ATTEMPTS`) are opt-in.
 
 ### Add a trigger
 
@@ -170,6 +176,23 @@ Rules and limits:
 - Trace spans stay on the main thread around `execute`; worker `Effect.log`
   lines go to inherited stdout without OTel enrichment.
 - Threads are terminated on scope close (graceful shutdown ordering applies).
+- Each slot fails fast past 1000 in-flight requests (`worker slot overloaded`)
+  and request ids wrap without colliding — both fall back to in-process.
+
+## CI
+
+`.github/workflows/ci.yml` runs on push + pull requests, five jobs:
+
+- `format` – `npm run format:check` (Prettier)
+- `typescript` – `npm run typecheck`
+- `node` – `npm run test` + `npm run build` + boot smoke test
+- `bun` – `npm run test:bun` + boot smoke test
+- `deno` – `deno task check` + boot smoke test
+
+Each smoke test boots the real service, waits for the `started: cron` log,
+then `SIGTERM`s it and asserts exit `0` plus `Shutdown complete` (graceful
+drain path). Vitest cannot run on Deno, so there the suite is covered by
+Node/Bun and Deno gets typecheck + smoke.
 
 ## License
 
