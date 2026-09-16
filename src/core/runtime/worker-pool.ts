@@ -178,12 +178,16 @@ export const WorkerPoolLive = (options: WorkerPoolOptions): Layer.Layer<WorkerPo
           }
           if (live.pending.size >= MAX_PENDING_PER_SLOT) {
             return yield* Effect.fail(
-              new WorkerPoolError({ reason: `worker slot overloaded (${live.pending.size} pending)` }),
+              new WorkerPoolError({
+                reason: `worker slot overloaded (${live.pending.size} pending)`,
+              }),
             )
           }
           const id = allocRequestId(live)
           if (id < 0) {
-            return yield* Effect.fail(new WorkerPoolError({ reason: "worker slot id space exhausted" }))
+            return yield* Effect.fail(
+              new WorkerPoolError({ reason: "worker slot id space exhausted" }),
+            )
           }
           const deferred = yield* Deferred.make<unknown, WorkerPoolError>()
           live.pending.set(id, deferred)

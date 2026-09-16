@@ -19,6 +19,8 @@
     "test:direct": "node node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:direct": "node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "build:direct": "node node_modules/tsup/dist/cli-default.js src/index.ts --format esm --out-dir dist --sourcemap --clean",
     "clean": "rm -rf dist"
   },
@@ -34,6 +36,7 @@
   "devDependencies": {
     "@effect/vitest": "^0.30.0",
     "@types/node": "^26.5.1",
+    "prettier": "^3.9.6",
     "tsup": "^8.5.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",

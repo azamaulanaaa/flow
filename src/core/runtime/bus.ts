@@ -9,21 +9,26 @@ export interface RunRequest {
 }
 
 export type RunEvent =
-  | { readonly _tag: "RunStarted"; readonly runId: string; readonly workflow: string; readonly trigger: string }
   | {
-    readonly _tag: "RunSucceeded"
-    readonly runId: string
-    readonly workflow: string
-    readonly outputs: ReadonlyMap<string, unknown>
-  }
+      readonly _tag: "RunStarted"
+      readonly runId: string
+      readonly workflow: string
+      readonly trigger: string
+    }
   | {
-    readonly _tag: "RunFailed"
-    readonly runId: string
-    readonly workflow: string
-    readonly reason: string
-    /** Machine-readable failure tag (e.g. `UnknownFunctionError`, `WorkflowNodeTimeoutError`, `UnknownWorkflow`). Optional for backward compatibility. */
-    readonly causeTag?: string
-  }
+      readonly _tag: "RunSucceeded"
+      readonly runId: string
+      readonly workflow: string
+      readonly outputs: ReadonlyMap<string, unknown>
+    }
+  | {
+      readonly _tag: "RunFailed"
+      readonly runId: string
+      readonly workflow: string
+      readonly reason: string
+      /** Machine-readable failure tag (e.g. `UnknownFunctionError`, `WorkflowNodeTimeoutError`, `UnknownWorkflow`). Optional for backward compatibility. */
+      readonly causeTag?: string
+    }
 
 export interface RuntimeBusShape {
   readonly queue: Queue.Queue<RunRequest>
@@ -50,9 +55,7 @@ export const RuntimeBusLive = (queueCapacity = 128): Layer.Layer<RuntimeBus> =>
   )
 
 /** Submit a run request (applies backpressure when the queue is full). */
-export const submitRun = (
-  request: RunRequest,
-): Effect.Effect<void, never, RuntimeBus> =>
+export const submitRun = (request: RunRequest): Effect.Effect<void, never, RuntimeBus> =>
   Effect.gen(function* () {
     const bus = yield* RuntimeBus
     yield* Queue.offer(bus.queue, request)

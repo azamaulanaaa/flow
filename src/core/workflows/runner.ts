@@ -1,7 +1,12 @@
 import { Data, Duration, Effect, Schedule } from "effect"
 import { FunctionRegistry, runFunction } from "@/core/functions/registry"
 import { WorkerPool } from "@/core/runtime/worker-pool"
-import { planWorkflow, resolveNodeInput, type WorkflowDef, type WorkflowNode } from "@/core/workflows/definition"
+import {
+  planWorkflow,
+  resolveNodeInput,
+  type WorkflowDef,
+  type WorkflowNode,
+} from "@/core/workflows/definition"
 
 export type WorkflowOutputs = ReadonlyMap<string, unknown>
 
@@ -45,9 +50,9 @@ const runFunctionPooled = (
     if (poolOpt._tag === "None") {
       return yield* runFunction<unknown, unknown>(fn, input)
     }
-    return yield* poolOpt.value.execute(fn, input).pipe(
-      Effect.orElse(() => runFunction<unknown, unknown>(fn, input)),
-    )
+    return yield* poolOpt.value
+      .execute(fn, input)
+      .pipe(Effect.orElse(() => runFunction<unknown, unknown>(fn, input)))
   })
 
 const runNode = (
@@ -60,7 +65,8 @@ const runNode = (
     yield* Effect.annotateCurrentSpan("workflow.name", workflowName)
     yield* Effect.annotateCurrentSpan("workflow.node", node.id)
     yield* Effect.annotateCurrentSpan("function.name", node.fn)
-    const input = node.input === undefined ? options.defaultInput : resolveNodeInput(node.input, outputs)
+    const input =
+      node.input === undefined ? options.defaultInput : resolveNodeInput(node.input, outputs)
     const attempts = Math.max(0, Math.floor(options.retryAttempts ?? 0))
     const timeoutMs = Math.floor(options.nodeTimeoutMs ?? 0)
     let task = runFunctionPooled(node.fn, input)

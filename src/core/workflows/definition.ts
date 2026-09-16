@@ -24,8 +24,13 @@ export class WorkflowDefinitionError extends Data.TaggedError("WorkflowDefinitio
 /** Topological execution levels. Nodes within a level have no inter-dependencies. */
 export type ExecutionLevels = ReadonlyArray<ReadonlyArray<WorkflowNode>>
 
-const resolveInput = (input: NodeInput | undefined, outputs: ReadonlyMap<string, unknown>): unknown =>
-  typeof input === "function" ? (input as (o: ReadonlyMap<string, unknown>) => unknown)(outputs) : input
+const resolveInput = (
+  input: NodeInput | undefined,
+  outputs: ReadonlyMap<string, unknown>,
+): unknown =>
+  typeof input === "function"
+    ? (input as (o: ReadonlyMap<string, unknown>) => unknown)(outputs)
+    : input
 
 export const resolveNodeInput = resolveInput
 
@@ -35,7 +40,9 @@ export const resolveNodeInput = resolveInput
  * Fails with {@link WorkflowDefinitionError} on duplicate ids,
  * unknown dependencies, or cycles.
  */
-export const planWorkflow = (def: WorkflowDef): Effect.Effect<ExecutionLevels, WorkflowDefinitionError> =>
+export const planWorkflow = (
+  def: WorkflowDef,
+): Effect.Effect<ExecutionLevels, WorkflowDefinitionError> =>
   Effect.gen(function* () {
     const fail = (reason: string) => new WorkflowDefinitionError({ reason, workflow: def.name })
 

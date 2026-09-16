@@ -61,7 +61,9 @@ describe("runWorkflow options", () => {
   it.live("times out slow nodes with WorkflowNodeTimeoutError", () =>
     Effect.gen(function* () {
       const def: WorkflowDef = { name: "slow-flow", nodes: [{ id: "s", fn: "slow" }] }
-      const error = yield* Effect.flip(runWorkflow(def, { nodeTimeoutMs: 50 }).pipe(Effect.provide(echoRegistry)))
+      const error = yield* Effect.flip(
+        runWorkflow(def, { nodeTimeoutMs: 50 }).pipe(Effect.provide(echoRegistry)),
+      )
       expect(error).toBeInstanceOf(WorkflowNodeTimeoutError)
     }),
   )
@@ -81,7 +83,9 @@ describe("runWorkflow options", () => {
         ),
       ])
       const def: WorkflowDef = { name: "flaky-flow", nodes: [{ id: "f", fn: "flaky" }] }
-      const outputs = yield* runWorkflow(def, { retryAttempts: 1 }).pipe(Effect.provide(flakyRegistry))
+      const outputs = yield* runWorkflow(def, { retryAttempts: 1 }).pipe(
+        Effect.provide(flakyRegistry),
+      )
       expect(outputs.get("f")).toBe("recovered")
       expect(yield* Ref.get(calls)).toBe(2)
     }),
@@ -146,9 +150,11 @@ describe("RunFailed causeTag", () => {
 
   it.effect("causeTagOf maps tagged errors, Errors and dies", () =>
     Effect.gen(function* () {
-      expect(causeTagOf(Cause.fail(new WorkflowNodeTimeoutError({ workflow: "w", node: "n", timeoutMs: 10 })))).toBe(
-        "WorkflowNodeTimeoutError",
-      )
+      expect(
+        causeTagOf(
+          Cause.fail(new WorkflowNodeTimeoutError({ workflow: "w", node: "n", timeoutMs: 10 })),
+        ),
+      ).toBe("WorkflowNodeTimeoutError")
       expect(causeTagOf(Cause.fail(new Error("boom")))).toBe("Error")
       expect(causeTagOf(Cause.die(new Error("die")))).toBe("Die")
     }),
@@ -162,7 +168,12 @@ describe("RunRequest input threading", () => {
         const bus = yield* RuntimeBus
         const subscription = yield* PubSub.subscribe(bus.events)
         yield* startRuntime({ workers: 1, workflowConcurrency: 4 })
-        yield* submitRun({ runId: "input-1", workflow: "echo-wf", trigger: "test", input: "run-data" })
+        yield* submitRun({
+          runId: "input-1",
+          workflow: "echo-wf",
+          trigger: "test",
+          input: "run-data",
+        })
         const started = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
         expect(started?._tag).toBe("RunStarted")
         const finished = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))

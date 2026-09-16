@@ -22,7 +22,8 @@ export type FunctionWorkerResponse =
 
 /** True inside a worker thread booted as a function executor. */
 export const isFunctionWorkerThread = (): boolean =>
-  !isMainThread && (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE
+  !isMainThread &&
+  (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE
 
 const RegistryLayer = FunctionRegistryLive([...exampleFunctions])
 
@@ -30,7 +31,9 @@ const serializeError = (error: unknown): string => {
   if (typeof error === "object" && error !== null && "_tag" in error) {
     const tag = (error as { readonly _tag: unknown })._tag
     const name = (error as { readonly name?: unknown }).name
-    return typeof tag === "string" ? `${tag}${typeof name === "string" ? `: ${name}` : ""}` : String(error)
+    return typeof tag === "string"
+      ? `${tag}${typeof name === "string" ? `: ${name}` : ""}`
+      : String(error)
   }
   return error instanceof Error ? error.message : String(error)
 }
@@ -56,7 +59,9 @@ export const runFunctionWorkerEntry = async (): Promise<never> => {
       let response: FunctionWorkerResponse
       try {
         const output = await Effect.runPromise(
-          runFunction<unknown, unknown>(message.fn, message.input).pipe(Effect.provide(RegistryLayer)),
+          runFunction<unknown, unknown>(message.fn, message.input).pipe(
+            Effect.provide(RegistryLayer),
+          ),
         )
         response = { id: message.id, ok: true, output }
       } catch (error) {

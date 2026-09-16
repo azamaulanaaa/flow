@@ -37,10 +37,7 @@ export class FunctionRegistry extends Context.Tag("FunctionRegistry")<
 export const FunctionRegistryLive = (
   defs: ReadonlyArray<FunctionDef<any, any, any>>,
 ): Layer.Layer<FunctionRegistry> =>
-  Layer.succeed(
-    FunctionRegistry,
-    new Map(defs.map((d) => [d.name, d])),
-  )
+  Layer.succeed(FunctionRegistry, new Map(defs.map((d) => [d.name, d])))
 
 /** Look up a function by name, failing with {@link UnknownFunctionError}. */
 export const lookupFunction = (

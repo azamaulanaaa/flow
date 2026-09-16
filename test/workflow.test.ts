@@ -9,7 +9,9 @@ const constFn = (name: string, value: unknown) => makeFunction(name, () => Effec
 const TestRegistryLive = FunctionRegistryLive([
   constFn("a", "A"),
   constFn("b", "B"),
-  makeFunction("concat", (input: { parts: Array<string> }) => Effect.succeed(input.parts.join("+"))),
+  makeFunction("concat", (input: { parts: Array<string> }) =>
+    Effect.succeed(input.parts.join("+")),
+  ),
 ])
 
 const diamond: WorkflowDef = {
@@ -21,7 +23,9 @@ const diamond: WorkflowDef = {
       id: "join",
       fn: "concat",
       dependsOn: ["left", "right"],
-      input: (outputs: ReadonlyMap<string, unknown>) => ({ parts: [outputs.get("left"), outputs.get("right")] }),
+      input: (outputs: ReadonlyMap<string, unknown>) => ({
+        parts: [outputs.get("left"), outputs.get("right")],
+      }),
     },
   ],
 }

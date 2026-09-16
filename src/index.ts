@@ -8,29 +8,32 @@ import { OtelLive } from "@/core/otel"
 import { runtimeKind, runWithDenoSignals } from "@/core/platform"
 import { RuntimeBus, RuntimeBusLive } from "@/core/runtime/bus"
 import { FUNCTION_WORKER_MODE, runFunctionWorkerEntry } from "@/core/runtime/function-worker"
-import { startRuntime, waitForIdle, WorkflowCatalog, WorkflowCatalogLive } from "@/core/runtime/service"
+import {
+  startRuntime,
+  waitForIdle,
+  WorkflowCatalog,
+  WorkflowCatalogLive,
+} from "@/core/runtime/service"
 import { WorkerPool, WorkerPoolLive } from "@/core/runtime/worker-pool"
 import { makeCronTrigger } from "@/core/triggers/cron"
 import { exampleFunctions } from "@/functions"
 import { exampleWorkflows } from "@/workflows"
 
 /** Bus capacity comes from env config so deploys can tune backpressure. */
-const RuntimeBusFromConfigLive: Layer.Layer<RuntimeBus, never, AppConfigService> = Layer.unwrapEffect(
-  Effect.map(AppConfigService, (config) => RuntimeBusLive(config.queueCapacity)),
-)
+const RuntimeBusFromConfigLive: Layer.Layer<RuntimeBus, never, AppConfigService> =
+  Layer.unwrapEffect(Effect.map(AppConfigService, (config) => RuntimeBusLive(config.queueCapacity)))
 
-const WorkerPoolFromConfigLive: Layer.Layer<WorkerPool, never, AppConfigService> = Layer.unwrapEffect(
-  Effect.map(
-    AppConfigService,
-    (config) =>
+const WorkerPoolFromConfigLive: Layer.Layer<WorkerPool, never, AppConfigService> =
+  Layer.unwrapEffect(
+    Effect.map(AppConfigService, (config) =>
       WorkerPoolLive({
         enabled: config.workerPoolEnabled,
         size: config.workerPoolSize,
         entryUrl: new URL(import.meta.url),
         timeoutMs: config.workerPoolTimeoutMs,
       }),
-  ),
-)
+    ),
+  )
 
 const MainLive = Layer.mergeAll(
   AppConfigLive,
@@ -72,10 +75,7 @@ const program: Effect.Effect<
   yield* Effect.addFinalizer((exit) =>
     Effect.gen(function* () {
       yield* Effect.log(`Shutdown requested (${exit._tag}), draining runs...`)
-      yield* waitForIdle.pipe(
-        Effect.timeout(`${config.shutdownTimeoutMs} millis`),
-        Effect.ignore,
-      )
+      yield* waitForIdle.pipe(Effect.timeout(`${config.shutdownTimeoutMs} millis`), Effect.ignore)
       yield* Effect.log("Shutdown complete, flushing telemetry")
     }),
   )
@@ -93,7 +93,10 @@ const main = program.pipe(
 // no extra build artifact). Main thread runs the service via the
 // runtime-appropriate runner: NodeRuntime on Node/Bun (dynamic import, so
 // Deno never evaluates `@effect/platform-node`), Deno signal handling on Deno.
-if (!isMainThread && (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE) {
+if (
+  !isMainThread &&
+  (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE
+) {
   await runFunctionWorkerEntry()
 } else if (runtimeKind() === "deno") {
   await runWithDenoSignals(main)

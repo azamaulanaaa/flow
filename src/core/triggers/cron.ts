@@ -38,7 +38,7 @@ export const makeCronTrigger = (
       yield* Effect.log(`Cron trigger fired run ${runId}`)
     }).pipe(
       Effect.withSpan(`trigger.cron.${options.workflow}`, {
-        attributes: { "workflow.name": options.workflow, "trigger": "cron" },
+        attributes: { "workflow.name": options.workflow, trigger: "cron" },
       }),
     )
 
@@ -49,9 +49,11 @@ export const makeCronTrigger = (
   })
 
 /** Fire a single run immediately (useful for boot hooks, tests, manual runs). */
-export const makeOnceTrigger = (
-  options: { readonly workflow: string; readonly input?: unknown; readonly runId?: string },
-): Trigger => ({
+export const makeOnceTrigger = (options: {
+  readonly workflow: string
+  readonly input?: unknown
+  readonly runId?: string
+}): Trigger => ({
   tag: "once",
   start: Effect.asVoid(
     Effect.forkScoped(

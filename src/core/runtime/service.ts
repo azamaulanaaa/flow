@@ -12,7 +12,8 @@ export class WorkflowCatalog extends Context.Tag("WorkflowCatalog")<
 
 export const WorkflowCatalogLive = (
   defs: ReadonlyArray<WorkflowDef>,
-): Layer.Layer<WorkflowCatalog> => Layer.succeed(WorkflowCatalog, new Map(defs.map((d) => [d.name, d])))
+): Layer.Layer<WorkflowCatalog> =>
+  Layer.succeed(WorkflowCatalog, new Map(defs.map((d) => [d.name, d])))
 
 const publishEvent = (event: RunEvent): Effect.Effect<void, never, RuntimeBus> =>
   Effect.gen(function* () {
@@ -20,7 +21,8 @@ const publishEvent = (event: RunEvent): Effect.Effect<void, never, RuntimeBus> =
     yield* PubSub.publish(bus.events, event)
   })
 
-const failureReason = (cause: Cause.Cause<unknown>): string => Cause.pretty(cause, { renderErrorCause: true })
+const failureReason = (cause: Cause.Cause<unknown>): string =>
+  Cause.pretty(cause, { renderErrorCause: true })
 
 /** Best-effort machine-readable tag for a workflow failure cause. */
 export const causeTagOf = (cause: Cause.Cause<unknown>): string => {
@@ -58,51 +60,56 @@ const handleRequest = (
     const bus = yield* RuntimeBus
     yield* Ref.update(bus.inflight, (n) => n + 1)
     return yield* Effect.gen(function* () {
-    yield* publishEvent({
-      _tag: "RunStarted",
-      runId: request.runId,
-      workflow: request.workflow,
-      trigger: request.trigger,
-    })
-    const catalog = yield* WorkflowCatalog
-    const def = catalog.get(request.workflow)
-    if (def === undefined) {
       yield* publishEvent({
-        _tag: "RunFailed",
+        _tag: "RunStarted",
         runId: request.runId,
         workflow: request.workflow,
-        reason: `unknown workflow: ${request.workflow}`,
-        causeTag: "UnknownWorkflow",
+        trigger: request.trigger,
       })
-      return
-    }
-    const exit = yield* Effect.exit(
-      runWorkflow(def, {
-        defaultInput: request.input,
-        concurrency: options.workflowConcurrency,
-        nodeTimeoutMs: options.nodeTimeoutMs,
-        retryAttempts: options.retryAttempts,
-      }),
-    )
-    if (exit._tag === "Success") {
-      const outputs = exit.value as WorkflowOutputs
-      yield* publishEvent({ _tag: "RunSucceeded", runId: request.runId, workflow: request.workflow, outputs })
-    } else {
-      yield* publishEvent({
-        _tag: "RunFailed",
-        runId: request.runId,
-        workflow: request.workflow,
-        reason: failureReason(exit.cause),
-        causeTag: causeTagOf(exit.cause),
-      })
-    }
+      const catalog = yield* WorkflowCatalog
+      const def = catalog.get(request.workflow)
+      if (def === undefined) {
+        yield* publishEvent({
+          _tag: "RunFailed",
+          runId: request.runId,
+          workflow: request.workflow,
+          reason: `unknown workflow: ${request.workflow}`,
+          causeTag: "UnknownWorkflow",
+        })
+        return
+      }
+      const exit = yield* Effect.exit(
+        runWorkflow(def, {
+          defaultInput: request.input,
+          concurrency: options.workflowConcurrency,
+          nodeTimeoutMs: options.nodeTimeoutMs,
+          retryAttempts: options.retryAttempts,
+        }),
+      )
+      if (exit._tag === "Success") {
+        const outputs = exit.value as WorkflowOutputs
+        yield* publishEvent({
+          _tag: "RunSucceeded",
+          runId: request.runId,
+          workflow: request.workflow,
+          outputs,
+        })
+      } else {
+        yield* publishEvent({
+          _tag: "RunFailed",
+          runId: request.runId,
+          workflow: request.workflow,
+          reason: failureReason(exit.cause),
+          causeTag: causeTagOf(exit.cause),
+        })
+      }
     }).pipe(Effect.ensuring(Ref.update(bus.inflight, (n) => Math.max(0, n - 1))))
   }).pipe(
     Effect.withSpan(`run.${request.workflow}`, {
       attributes: {
         "run.id": request.runId,
         "workflow.name": request.workflow,
-        "trigger": request.trigger,
+        trigger: request.trigger,
       },
     }),
   )
@@ -150,9 +157,7 @@ export const startRuntime = (
  * `pollMs` controls the idle-check interval (default 25ms). Lower values
  * wake faster under load; higher values reduce timer churn when idle.
  */
-export const waitForIdleWithPoll = (
-  pollMs = 25,
-): Effect.Effect<void, never, RuntimeBus> =>
+export const waitForIdleWithPoll = (pollMs = 25): Effect.Effect<void, never, RuntimeBus> =>
   Effect.gen(function* () {
     const bus = yield* RuntimeBus
     const interval = Math.max(1, Math.floor(pollMs))

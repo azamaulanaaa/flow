@@ -26,9 +26,7 @@ const denoApi = (): DenoSignalApi | undefined =>
  * dependency): forks the effect and interrupts the fiber on SIGINT/SIGTERM,
  * so scope finalizers (drain, OTel flush) run exactly like on Node/Bun.
  */
-export const runWithDenoSignals = async <A, E>(
-  effect: Effect.Effect<A, E>,
-): Promise<void> => {
+export const runWithDenoSignals = async <A, E>(effect: Effect.Effect<A, E>): Promise<void> => {
   const fiber = Effect.runFork(effect)
   const api = denoApi()
   if (api === undefined) {

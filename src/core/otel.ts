@@ -41,7 +41,8 @@ export const resolveOtlpUrls = (
 export const OtelLive: Layer.Layer<never, never, AppConfigService> = Layer.unwrapEffect(
   Effect.gen(function* () {
     const config = yield* AppConfigService
-    const urls = config.otlpEndpoint !== undefined ? resolveOtlpUrls(config.otlpEndpoint) : undefined
+    const urls =
+      config.otlpEndpoint !== undefined ? resolveOtlpUrls(config.otlpEndpoint) : undefined
     const spanProcessor = urls
       ? new BatchSpanProcessor(new OTLPTraceExporter({ url: urls.tracesUrl }))
       : new BatchSpanProcessor(new ConsoleSpanExporter())

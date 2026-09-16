@@ -5,9 +5,7 @@ import { RuntimeBus, RuntimeBusLive, submitRun } from "@/core/runtime/bus"
 import { WorkflowCatalogLive, startRuntime } from "@/core/runtime/service"
 import type { WorkflowDef } from "@/core/workflows/definition"
 
-const TestRegistryLive = FunctionRegistryLive([
-  makeFunction("ping", () => Effect.succeed("pong")),
-])
+const TestRegistryLive = FunctionRegistryLive([makeFunction("ping", () => Effect.succeed("pong"))])
 
 const pingWorkflow: WorkflowDef = {
   name: "ping",
@@ -55,15 +53,19 @@ describe("Runtime", () => {
         yield* submitRun({ runId: "run-bad", workflow: "ghost", trigger: "test" })
         const failed = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
         // First event for this run is RunStarted; drain until RunFailed.
-        const second = failed?._tag === "RunStarted"
-          ? yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
-          : failed
+        const second =
+          failed?._tag === "RunStarted"
+            ? yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
+            : failed
         expect(second?._tag).toBe("RunFailed")
 
         // Worker still alive: a valid run completes afterwards.
         yield* submitRun({ runId: "run-2", workflow: "ping", trigger: "test" })
         let event = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
-        while (event?._tag === "RunStarted" || (event?._tag !== undefined && (event as { runId?: string }).runId !== "run-2")) {
+        while (
+          event?._tag === "RunStarted" ||
+          (event?._tag !== undefined && (event as { runId?: string }).runId !== "run-2")
+        ) {
           event = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
         }
         expect(event?._tag).toBe("RunSucceeded")
