@@ -6,6 +6,7 @@ import {
   WorkerPoolLive,
   WorkerPoolError,
   WorkerPoolTimeoutError,
+  allocRequestId,
 } from "@/core/runtime/worker-pool"
 import { runWorkflow } from "@/core/workflows/runner"
 import type { WorkflowDef } from "@/core/workflows/definition"
@@ -113,5 +114,40 @@ describe("WorkerPool", () => {
         ),
       ),
     ),
+  )
+
+  it.live("fails fast on unserializable input", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const pool = yield* WorkerPool
+        const error = yield* Effect.flip(pool.execute("any-fn", () => {}))
+        expect(error).toBeInstanceOf(WorkerPoolError)
+        expect(error._tag).toBe("WorkerPoolError")
+        if (error._tag === "WorkerPoolError") {
+          expect(error.reason).toContain("unserializable input")
+        }
+      }),
+    ).pipe(Effect.provide(poolLive())),
+  )
+})
+
+describe("allocRequestId", () => {
+  it.effect("wraps around MAX_SAFE_INTEGER without colliding", () =>
+    Effect.gen(function* () {
+      const pending = new Map<number, unknown>([[1, "taken"]])
+      const slot = { nextId: Number.MAX_SAFE_INTEGER, pending }
+      expect(allocRequestId(slot)).toBe(2)
+    }),
+  )
+
+  it.effect("returns -1 when the id space is exhausted", () =>
+    Effect.gen(function* () {
+      const pending = new Map<number, unknown>()
+      for (let i = 1; i <= 1001; i++) {
+        pending.set(i, "x")
+      }
+      const slot = { nextId: 1, pending }
+      expect(allocRequestId(slot)).toBe(-1)
+    }),
   )
 })

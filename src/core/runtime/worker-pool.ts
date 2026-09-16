@@ -12,6 +12,23 @@ export class WorkerPoolTimeoutError extends Data.TaggedError("WorkerPoolTimeoutE
   readonly timeoutMs: number
 }> {}
 
+/** Max in-flight requests per slot before failing fast (bounds pending Map growth). */
+export const MAX_PENDING_PER_SLOT = 1000
+
+/** Allocate a request id that does not collide with in-flight requests. Wraps on overflow. */
+export const allocRequestId = (slot: { nextId: number; pending: Map<number, unknown> }): number => {
+  for (let i = 0; i < MAX_PENDING_PER_SLOT + 1; i++) {
+    if (slot.nextId > Number.MAX_SAFE_INTEGER - 1) {
+      slot.nextId = 1
+    }
+    const id = slot.nextId++
+    if (!slot.pending.has(id)) {
+      return id
+    }
+  }
+  return -1
+}
+
 export interface WorkerPoolOptions {
   /** False = stub that always fails (runner falls back to in-process). No threads spawned. */
   readonly enabled: boolean
@@ -159,7 +176,15 @@ export const WorkerPoolLive = (options: WorkerPoolOptions): Layer.Layer<WorkerPo
           if (worker === null) {
             return yield* Effect.fail(new WorkerPoolError({ reason: "no live workers in pool" }))
           }
-          const id = live.nextId++
+          if (live.pending.size >= MAX_PENDING_PER_SLOT) {
+            return yield* Effect.fail(
+              new WorkerPoolError({ reason: `worker slot overloaded (${live.pending.size} pending)` }),
+            )
+          }
+          const id = allocRequestId(live)
+          if (id < 0) {
+            return yield* Effect.fail(new WorkerPoolError({ reason: "worker slot id space exhausted" }))
+          }
           const deferred = yield* Deferred.make<unknown, WorkerPoolError>()
           live.pending.set(id, deferred)
           try {
