@@ -1,0 +1,47 @@
+# Node runtime (primary) — builds the tsup bundle, runs the compiled output.
+# Build:  docker build -f Dockerfile.node -t workflow-runner:node .
+# Run:    docker run --rm -e CRON_EXPRESSION="*/1 * * * *" workflow-runner:node
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:22-slim AS runner
+
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+
+# Defaults mirror README Configuration table; override at `docker run -e ...`.
+ENV SERVICE_NAME=workflow-runner \
+    LOG_LEVEL=INFO \
+    QUEUE_CAPACITY=128 \
+    RUNTIME_WORKERS=4 \
+    WORKFLOW_CONCURRENCY=32 \
+    WORKFLOW_NODE_TIMEOUT_MS=0 \
+    WORKFLOW_RETRY_ATTEMPTS=0 \
+    CRON_EXPRESSION="*/1 * * * *" \
+    SHUTDOWN_TIMEOUT_MS=10000 \
+    WORKER_POOL_ENABLED=false \
+    WORKER_POOL_TIMEOUT_MS=30000
+# WORKER_POOL_SIZE defaults to CPU count in code; OTEL_EXPORTER_OTLP_ENDPOINT unset = console exporter.
+
+USER node
+
+# Graceful shutdown: src/index.ts drains on SIGINT/SIGTERM via waitForIdle.
+STOPSIGNAL SIGTERM
+
+# No HEALTHCHECK: service exposes no UI or endpoints by design.
+
+CMD ["node", "dist/index.js"]

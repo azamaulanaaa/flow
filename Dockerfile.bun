@@ -1,0 +1,37 @@
+# Bun runtime (verified) — runs TS directly via tsconfig `@/` paths, no build step.
+# Mirrors `bun src/index.ts` (npm run dev:bun).
+# Build:  docker build -f Dockerfile.bun -t workflow-runner:bun .
+# Run:    docker run --rm -e CRON_EXPRESSION="*/1 * * * *" workflow-runner:bun
+FROM oven/bun:1 AS runner
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.json ./
+COPY src ./src
+
+# Bun resolves npm deps from package.json; no bun.lockb required.
+RUN bun install --no-progress
+
+# Defaults mirror README Configuration table; override at `docker run -e ...`.
+ENV SERVICE_NAME=workflow-runner \
+    LOG_LEVEL=INFO \
+    QUEUE_CAPACITY=128 \
+    RUNTIME_WORKERS=4 \
+    WORKFLOW_CONCURRENCY=32 \
+    WORKFLOW_NODE_TIMEOUT_MS=0 \
+    WORKFLOW_RETRY_ATTEMPTS=0 \
+    CRON_EXPRESSION="*/1 * * * *" \
+    SHUTDOWN_TIMEOUT_MS=10000 \
+    WORKER_POOL_ENABLED=false \
+    WORKER_POOL_TIMEOUT_MS=30000
+# WORKER_POOL_SIZE defaults to CPU count in code; OTEL_EXPORTER_OTLP_ENDPOINT unset = console exporter.
+
+USER bun
+
+# Graceful shutdown: NodeRuntime.runMain interrupts Effect.never on SIGINT/SIGTERM.
+STOPSIGNAL SIGTERM
+
+# No HEALTHCHECK: service exposes no UI or endpoints by design.
+# To run the prebuilt bundle instead: build with Node image, then `bun dist/index.js`.
+
+CMD ["bun", "src/index.ts"]

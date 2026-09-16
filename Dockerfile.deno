@@ -1,0 +1,40 @@
+# Deno runtime (experimental) — runs TS directly via deno.json import map + sloppy-imports.
+# Mirrors `deno task dev` (deno run --allow-all src/index.ts).
+# Build:  docker build -f Dockerfile.deno -t workflow-runner:deno .
+# Run:    docker run --rm -e CRON_EXPRESSION="*/1 * * * *" workflow-runner:deno
+FROM denoland/deno:2 AS runner
+
+WORKDIR /app
+
+COPY deno.json package.json package-lock.json ./
+COPY src ./src
+
+# Cache npm + JSR deps at build time so boot is fast.
+# Needs network access; Deno 2 resolves npm deps declared in package.json.
+RUN deno cache src/index.ts
+
+# Defaults mirror README Configuration table; override at `docker run -e ...`.
+ENV SERVICE_NAME=workflow-runner \
+    LOG_LEVEL=INFO \
+    QUEUE_CAPACITY=128 \
+    RUNTIME_WORKERS=4 \
+    WORKFLOW_CONCURRENCY=32 \
+    WORKFLOW_NODE_TIMEOUT_MS=0 \
+    WORKFLOW_RETRY_ATTEMPTS=0 \
+    CRON_EXPRESSION="*/1 * * * *" \
+    SHUTDOWN_TIMEOUT_MS=10000 \
+    WORKER_POOL_ENABLED=false \
+    WORKER_POOL_TIMEOUT_MS=30000
+# WORKER_POOL_SIZE defaults to CPU count in code; OTEL_EXPORTER_OTLP_ENDPOINT unset = console exporter.
+# Caveats per README: node:worker_threads pool falls back to in-process on Deno;
+# OTel async_hooks correlation may degrade.
+
+USER deno
+
+# Graceful shutdown: runWithDenoSignals (src/core/platform.ts) interrupts on SIGINT/SIGTERM.
+STOPSIGNAL SIGTERM
+
+# No HEALTHCHECK: service exposes no UI or endpoints by design.
+# Requires --allow-all equivalent (env/net/threads for config, OTel, worker pool).
+
+CMD ["deno", "run", "--allow-all", "src/index.ts"]
