@@ -1,4 +1,13 @@
 import { Config, Context, Layer } from "effect"
+import { availableParallelism } from "node:os"
+
+const cpuCount = (): number => {
+  try {
+    return Math.max(1, availableParallelism())
+  } catch {
+    return 4
+  }
+}
 
 export interface AppConfig {
   readonly serviceName: string
@@ -7,6 +16,9 @@ export interface AppConfig {
   readonly cronExpression: string
   readonly otlpEndpoint: string | undefined
   readonly shutdownTimeoutMs: number
+  readonly workerPoolEnabled: boolean
+  readonly workerPoolSize: number
+  readonly workerPoolTimeoutMs: number
 }
 
 export class AppConfigService extends Context.Tag("AppConfigService")<
@@ -20,6 +32,9 @@ const AppConfigFromEnv = Config.all({
   queueCapacity: Config.integer("QUEUE_CAPACITY").pipe(Config.withDefault(128)),
   cronExpression: Config.string("CRON_EXPRESSION").pipe(Config.withDefault("*/1 * * * *")),
   shutdownTimeoutMs: Config.integer("SHUTDOWN_TIMEOUT_MS").pipe(Config.withDefault(10_000)),
+  workerPoolEnabled: Config.boolean("WORKER_POOL_ENABLED").pipe(Config.withDefault(false)),
+  workerPoolSize: Config.integer("WORKER_POOL_SIZE").pipe(Config.withDefault(cpuCount())),
+  workerPoolTimeoutMs: Config.integer("WORKER_POOL_TIMEOUT_MS").pipe(Config.withDefault(30_000)),
   otlpEndpoint: Config.option(Config.string("OTEL_EXPORTER_OTLP_ENDPOINT")).pipe(
     Config.map((o) => (o._tag === "Some" ? o.value : undefined)),
   ),

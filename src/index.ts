@@ -1,11 +1,14 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import { Effect, Layer } from "effect"
 import type { Scope } from "effect/Scope"
+import { isMainThread, workerData } from "node:worker_threads"
 import { AppConfigLive, AppConfigService } from "@/core/config"
 import { FunctionRegistry, FunctionRegistryLive } from "@/core/functions/registry"
 import { OtelLive } from "@/core/otel"
 import { RuntimeBus, RuntimeBusLive } from "@/core/runtime/bus"
+import { FUNCTION_WORKER_MODE, runFunctionWorkerEntry } from "@/core/runtime/function-worker"
 import { startRuntime, waitForIdle, WorkflowCatalog, WorkflowCatalogLive } from "@/core/runtime/service"
+import { WorkerPool, WorkerPoolLive } from "@/core/runtime/worker-pool"
 import { makeCronTrigger } from "@/core/triggers/cron"
 import { exampleFunctions } from "@/functions"
 import { exampleWorkflows } from "@/workflows"
@@ -15,12 +18,26 @@ const RuntimeBusFromConfigLive: Layer.Layer<RuntimeBus, never, AppConfigService>
   Effect.map(AppConfigService, (config) => RuntimeBusLive(config.queueCapacity)),
 )
 
+const WorkerPoolFromConfigLive: Layer.Layer<WorkerPool, never, AppConfigService> = Layer.unwrapEffect(
+  Effect.map(
+    AppConfigService,
+    (config) =>
+      WorkerPoolLive({
+        enabled: config.workerPoolEnabled,
+        size: config.workerPoolSize,
+        entryUrl: new URL(import.meta.url),
+        timeoutMs: config.workerPoolTimeoutMs,
+      }),
+  ),
+)
+
 const MainLive = Layer.mergeAll(
   AppConfigLive,
   FunctionRegistryLive([...exampleFunctions]),
   WorkflowCatalogLive([...exampleWorkflows]),
   RuntimeBusFromConfigLive.pipe(Layer.provide(AppConfigLive)),
   OtelLive.pipe(Layer.provide(AppConfigLive)),
+  WorkerPoolFromConfigLive.pipe(Layer.provide(AppConfigLive)),
 )
 
 const program: Effect.Effect<
@@ -65,4 +82,10 @@ const main = program.pipe(
   Effect.catchAllCause((cause) => Effect.logError(cause)),
 )
 
-main.pipe(NodeRuntime.runMain)
+// Worker threads boot this same entrypoint in dispatcher mode (same bundle,
+// no extra build artifact). Main thread runs the service.
+if (!isMainThread && (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE) {
+  await runFunctionWorkerEntry()
+} else {
+  main.pipe(NodeRuntime.runMain)
+}

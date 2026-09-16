@@ -1,8 +1,31 @@
 import { Effect } from "effect"
 import { FunctionRegistry, runFunction } from "@/core/functions/registry"
+import { WorkerPool } from "@/core/runtime/worker-pool"
 import { planWorkflow, resolveNodeInput, type WorkflowDef, type WorkflowNode } from "@/core/workflows/definition"
 
 export type WorkflowOutputs = ReadonlyMap<string, unknown>
+
+/**
+ * Run a function through the worker-thread pool when one is provided,
+ * falling back to in-process execution on any pool failure (disabled pool,
+ * dead workers, timeouts, unserializable payloads).
+ *
+ * NB: fallback on timeout is at-least-once — the worker may still finish the
+ * task after we gave up waiting. Keep functions idempotent when the pool is on.
+ */
+const runFunctionPooled = (
+  fn: string,
+  input: unknown,
+): Effect.Effect<unknown, unknown, FunctionRegistry> =>
+  Effect.gen(function* () {
+    const poolOpt = yield* Effect.serviceOption(WorkerPool)
+    if (poolOpt._tag === "None") {
+      return yield* runFunction<unknown, unknown>(fn, input)
+    }
+    return yield* poolOpt.value.execute(fn, input).pipe(
+      Effect.orElse(() => runFunction<unknown, unknown>(fn, input)),
+    )
+  })
 
 const runNode = (
   workflowName: string,
@@ -14,7 +37,7 @@ const runNode = (
     yield* Effect.annotateCurrentSpan("workflow.node", node.id)
     yield* Effect.annotateCurrentSpan("function.name", node.fn)
     const input = resolveNodeInput(node.input, outputs)
-    const output = yield* runFunction<unknown, unknown>(node.fn, input)
+    const output = yield* runFunctionPooled(node.fn, input)
     return [node.id, output] as [string, unknown]
   }).pipe(Effect.withSpan(`workflow.${workflowName}.node.${node.id}`))
 
