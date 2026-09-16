@@ -1,7 +1,8 @@
 {
   "imports": {
-    "@/*": "./src/*"
+    "@/": "./src/"
   },
+  "unstable": ["sloppy-imports"],
   "tasks": {
     "dev": "deno run --allow-all src/index.ts",
     "start": "deno run --allow-all dist/index.js",
