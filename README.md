@@ -40,6 +40,7 @@ npm start
 | `SERVICE_NAME` | `workflow-runner` | OTel service name |
 | `LOG_LEVEL` | `INFO` | log level |
 | `QUEUE_CAPACITY` | `128` | run-queue bound (backpressure) |
+| `RUNTIME_WORKERS` | `4` | runtime worker fibers draining the queue |
 | `CRON_EXPRESSION` | `*/1 * * * *` | schedule for the bundled cron trigger |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | OTLP HTTP endpoint; unset = console exporter |
 | `SHUTDOWN_TIMEOUT_MS` | `10000` | max wait to drain queued + in-flight runs on SIGINT/SIGTERM |
