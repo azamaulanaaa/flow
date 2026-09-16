@@ -72,7 +72,7 @@ jobs:
         with:
           bun-version: latest
       - run: npm ci
-      - run: npm run test:bun
+      - run: bun node_modules/vitest/vitest.mjs run
       - name: smoke (boot + graceful shutdown)
         run: |
           bun src/index.ts > boot.log 2>&1 &

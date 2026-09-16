@@ -26,17 +26,17 @@ machine-readable `causeTag` (e.g. `UnknownFunctionError`,
 
 ```sh
 npm install
-npm run typecheck
-npm run test
-npm run build
-npm run format:check
-npm start
+npm run check   # typecheck + format:check + test + build (mirrors CI)
+npm start       # node dist/index.js (after build)
 ```
 
+Individual steps: `npm run typecheck|test|build|format:check`,
+dev via `npm run dev`, watch mode via `npm run test:watch`.
+
 > Note: if `npm install` fails with `EPERM ... symlink` in a restricted
-> sandbox, retry with `npm install --no-bin-links` and use the `:direct`
-> scripts (`npm run typecheck:direct|test:direct|build:direct`), which invoke
-> `node node_modules/...` without relying on `.bin` symlinks.
+> sandbox, retry with `npm install --no-bin-links` and invoke the tool
+> directly, e.g. `node node_modules/typescript/lib/tsc.js --noEmit
+> -p tsconfig.json`, without relying on `.bin` symlinks.
 
 ## Configuration (env)
 
@@ -69,14 +69,14 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
 
 ## Runtimes — Node, Bun, Deno
 
-- **Node** (primary): `npm run typecheck|test|build|start`. Tests run on Node.
+- **Node** (primary): `npm run check` (`typecheck|format:check|test|build`) or `npm start`. Tests run on Node.
 - **Bun** (verified): runs TS directly with tsconfig `@/` paths, no build step.
   ```sh
-  bun src/index.ts            # dev (replaces tsx)
-  bun dist/index.js           # built bundle
+  bun src/index.ts            # dev (replaces `npm run dev` / tsx)
+  bun dist/index.js           # built bundle (replaces `npm start`)
   bun node_modules/vitest/vitest.mjs run   # tests, ~2x faster here
   ```
-  `npm run dev:bun|start:bun|test:bun` wrap these. `NodeRuntime` is used on Bun
+  `NodeRuntime` is used on Bun
   (dynamic import in `src/index.ts`), worker pool verified working.
 - **Deno** (experimental): `deno.json` maps `@/` (trailing-slash import-map
   form — Deno has no TS `paths` wildcards) and enables `sloppy-imports` for
@@ -186,7 +186,7 @@ Rules and limits:
 - `format` – `npm run format:check` (Prettier)
 - `typescript` – `npm run typecheck`
 - `node` – `npm run test` + `npm run build` + boot smoke test
-- `bun` – `npm run test:bun` + boot smoke test
+- `bun` – `bun node_modules/vitest/vitest.mjs run` + boot smoke test
 - `deno` – `deno task check` + boot smoke test
 
 Each smoke test boots the real service, waits for the `started: cron` log,

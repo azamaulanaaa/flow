@@ -1,5 +1,5 @@
 # Bun runtime (verified) — runs TS directly via tsconfig `@/` paths, no build step.
-# Mirrors `bun src/index.ts` (npm run dev:bun).
+# Mirrors `bun src/index.ts`.
 # Build:  docker build -f Dockerfile.bun -t workflow-runner:bun .
 # Run:    docker run --rm -e CRON_EXPRESSION="*/1 * * * *" workflow-runner:bun
 FROM oven/bun:1 AS runner
