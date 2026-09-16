@@ -187,12 +187,18 @@ Rules and limits:
 - `typescript` – `npm run typecheck`
 - `node` – `npm run test` + `npm run build` + boot smoke test
 - `bun` – `bun node_modules/vitest/vitest.mjs run` + boot smoke test
-- `deno` – `deno task check` + boot smoke test
+- `deno` – `deno task test` + boot smoke test
+
+Static checks (`format`, `typescript`) run once on Node — `tsc` is a native
+(Go) binary there, so per-runtime typechecking is redundant. Each runtime
+job (`node`, `bun`, `deno`) runs the same Vitest suite plus a boot smoke
+test: note `deno task test` invokes the suite via Node (Vitest cannot run
+on the Deno runtime itself); Deno-runtime coverage comes from the smoke
+boot, which runs `deno run --allow-all src/index.ts`.
 
 Each smoke test boots the real service, waits for the `started: cron` log,
 then `SIGTERM`s it and asserts exit `0` plus `Shutdown complete` (graceful
-drain path). Vitest cannot run on Deno, so there the suite is covered by
-Node/Bun and Deno gets typecheck + smoke.
+drain path).
 
 ## License
 

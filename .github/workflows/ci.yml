@@ -89,15 +89,20 @@ jobs:
           grep -q "Shutdown complete" boot.log
 
   deno:
-    name: deno (check + smoke)
+    name: deno (test + smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - run: npm ci
       - run: deno install
-      - run: deno task check
+      - run: deno task test
       - name: smoke (boot + graceful shutdown)
         run: |
           deno run --allow-all src/index.ts > boot.log 2>&1 &
