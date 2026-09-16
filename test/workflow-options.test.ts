@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Layer, PubSub, Queue, Ref } from "effect"
+import { Cause, Effect, Layer, PubSub, Queue, Ref } from "effect"
 import { FunctionRegistryLive, makeFunction } from "@/core/functions/registry"
 import { RuntimeBus, RuntimeBusLive, submitRun } from "@/core/runtime/bus"
-import { WorkflowCatalogLive, startRuntime } from "@/core/runtime/service"
+import { WorkflowCatalogLive, causeTagOf, startRuntime } from "@/core/runtime/service"
 import { runWorkflow, WorkflowNodeTimeoutError } from "@/core/workflows/runner"
 import type { WorkflowDef } from "@/core/workflows/definition"
 
@@ -84,6 +84,73 @@ describe("runWorkflow options", () => {
       const outputs = yield* runWorkflow(def, { retryAttempts: 1 }).pipe(Effect.provide(flakyRegistry))
       expect(outputs.get("f")).toBe("recovered")
       expect(yield* Ref.get(calls)).toBe(2)
+    }),
+  )
+})
+
+describe("RunFailed causeTag", () => {
+  it.effect("tags unknown workflows", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const bus = yield* RuntimeBus
+        const subscription = yield* PubSub.subscribe(bus.events)
+        yield* startRuntime({ workers: 1 })
+        yield* submitRun({ runId: "tag-bad", workflow: "ghost", trigger: "test" })
+        let event = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
+        while (event?._tag === "RunStarted") {
+          event = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
+        }
+        expect(event?._tag).toBe("RunFailed")
+        if (event?._tag === "RunFailed") {
+          expect(event.causeTag).toBe("UnknownWorkflow")
+        }
+      }),
+    ).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          RuntimeBusLive(16),
+          WorkflowCatalogLive([{ name: "echo-wf", nodes: [{ id: "e", fn: "echo" }] }]),
+          echoRegistry,
+        ),
+      ),
+    ),
+  )
+
+  it.effect("tags workflow failures with the underlying error tag", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const bus = yield* RuntimeBus
+        const subscription = yield* PubSub.subscribe(bus.events)
+        yield* startRuntime({ workers: 1 })
+        yield* submitRun({ runId: "tag-fail", workflow: "missing-fn", trigger: "test" })
+        let event = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
+        while (event?._tag === "RunStarted") {
+          event = yield* Queue.take(subscription).pipe(Effect.timeout("5 seconds"))
+        }
+        expect(event?._tag).toBe("RunFailed")
+        if (event?._tag === "RunFailed") {
+          expect(event.causeTag).toBe("UnknownFunctionError")
+          expect(event.reason).toContain("nope")
+        }
+      }),
+    ).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          RuntimeBusLive(16),
+          WorkflowCatalogLive([{ name: "missing-fn", nodes: [{ id: "x", fn: "nope" }] }]),
+          echoRegistry,
+        ),
+      ),
+    ),
+  )
+
+  it.effect("causeTagOf maps tagged errors, Errors and dies", () =>
+    Effect.gen(function* () {
+      expect(causeTagOf(Cause.fail(new WorkflowNodeTimeoutError({ workflow: "w", node: "n", timeoutMs: 10 })))).toBe(
+        "WorkflowNodeTimeoutError",
+      )
+      expect(causeTagOf(Cause.fail(new Error("boom")))).toBe("Error")
+      expect(causeTagOf(Cause.die(new Error("die")))).toBe("Die")
     }),
   )
 })

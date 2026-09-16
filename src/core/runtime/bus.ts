@@ -16,7 +16,14 @@ export type RunEvent =
     readonly workflow: string
     readonly outputs: ReadonlyMap<string, unknown>
   }
-  | { readonly _tag: "RunFailed"; readonly runId: string; readonly workflow: string; readonly reason: string }
+  | {
+    readonly _tag: "RunFailed"
+    readonly runId: string
+    readonly workflow: string
+    readonly reason: string
+    /** Machine-readable failure tag (e.g. `UnknownFunctionError`, `WorkflowNodeTimeoutError`, `UnknownWorkflow`). Optional for backward compatibility. */
+    readonly causeTag?: string
+  }
 
 export interface RuntimeBusShape {
   readonly queue: Queue.Queue<RunRequest>

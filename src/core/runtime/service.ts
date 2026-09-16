@@ -22,6 +22,28 @@ const publishEvent = (event: RunEvent): Effect.Effect<void, never, RuntimeBus> =
 
 const failureReason = (cause: Cause.Cause<unknown>): string => Cause.pretty(cause, { renderErrorCause: true })
 
+/** Best-effort machine-readable tag for a workflow failure cause. */
+export const causeTagOf = (cause: Cause.Cause<unknown>): string => {
+  const failure = Cause.failureOption(cause)
+  if (failure._tag === "Some") {
+    const error = failure.value
+    if (typeof error === "object" && error !== null && "_tag" in error) {
+      const tag = (error as { readonly _tag?: unknown })._tag
+      if (typeof tag === "string" && tag.length > 0) {
+        return tag
+      }
+    }
+    if (error instanceof Error) {
+      return error.name || "Error"
+    }
+    return "UnknownError"
+  }
+  if (Cause.isDie(cause)) {
+    return "Die"
+  }
+  return "Interrupt"
+}
+
 export interface RuntimeWorkerOptions {
   readonly workflowConcurrency?: number
   readonly nodeTimeoutMs?: number
@@ -50,6 +72,7 @@ const handleRequest = (
         runId: request.runId,
         workflow: request.workflow,
         reason: `unknown workflow: ${request.workflow}`,
+        causeTag: "UnknownWorkflow",
       })
       return
     }
@@ -70,6 +93,7 @@ const handleRequest = (
         runId: request.runId,
         workflow: request.workflow,
         reason: failureReason(exit.cause),
+        causeTag: causeTagOf(exit.cause),
       })
     }
     }).pipe(Effect.ensuring(Ref.update(bus.inflight, (n) => Math.max(0, n - 1))))
