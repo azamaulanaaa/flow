@@ -35,8 +35,8 @@ dev via `npm run dev`, watch mode via `npm run test:watch`.
 
 > Note: if `npm install` fails with `EPERM ... symlink` in a restricted
 > sandbox, retry with `npm install --no-bin-links` and invoke the tool
-> directly, e.g. `node node_modules/typescript/lib/tsc.js --noEmit
-> -p tsconfig.json`, without relying on `.bin` symlinks.
+> directly without relying on `.bin` symlinks, e.g.
+> `node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json`.
 
 ## Configuration (env)
 
