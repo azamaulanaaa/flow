@@ -33,7 +33,7 @@ jobs:
       - run: npm run typecheck
 
   node:
-    name: node (test + build)
+    name: node (test + build + smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,9 +44,23 @@ jobs:
       - run: npm ci
       - run: npm run test
       - run: npm run build
+      - name: smoke (boot + graceful shutdown)
+        run: |
+          node dist/index.js > boot.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 30); do
+            sleep 1
+            if grep -q "started: cron" boot.log; then break; fi
+          done
+          if ! grep -q "started: cron" boot.log; then cat boot.log; kill -TERM "$pid" || true; exit 1; fi
+          kill -TERM "$pid" || true
+          if wait "$pid"; then code=0; else code=$?; fi
+          cat boot.log
+          test "$code" -eq 0
+          grep -q "Shutdown complete" boot.log
 
   bun:
-    name: bun (test)
+    name: bun (test + smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,9 +73,23 @@ jobs:
           bun-version: latest
       - run: npm ci
       - run: npm run test:bun
+      - name: smoke (boot + graceful shutdown)
+        run: |
+          bun src/index.ts > boot.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 30); do
+            sleep 1
+            if grep -q "started: cron" boot.log; then break; fi
+          done
+          if ! grep -q "started: cron" boot.log; then cat boot.log; kill -TERM "$pid" || true; exit 1; fi
+          kill -TERM "$pid" || true
+          if wait "$pid"; then code=0; else code=$?; fi
+          cat boot.log
+          test "$code" -eq 0
+          grep -q "Shutdown complete" boot.log
 
   deno:
-    name: deno (check)
+    name: deno (check + smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,3 +97,17 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno task check
+      - name: smoke (boot + graceful shutdown)
+        run: |
+          deno run --allow-all src/index.ts > boot.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 150); do
+            sleep 1
+            if grep -q "started: cron" boot.log; then break; fi
+          done
+          if ! grep -q "started: cron" boot.log; then cat boot.log; kill -TERM "$pid" || true; exit 1; fi
+          kill -TERM "$pid" || true
+          if wait "$pid"; then code=0; else code=$?; fi
+          cat boot.log
+          test "$code" -eq 0
+          grep -q "Shutdown complete" boot.log
