@@ -3,6 +3,7 @@ import type { Scope } from "effect/Scope"
 import { isMainThread, workerData } from "node:worker_threads"
 import { AppConfigLive, AppConfigService } from "@/core/config"
 import { FunctionRegistry, FunctionRegistryLive } from "@/core/functions/registry"
+import { LogLevelLive } from "@/core/logging"
 import { OtelLive } from "@/core/otel"
 import { runtimeKind, runWithDenoSignals } from "@/core/platform"
 import { RuntimeBus, RuntimeBusLive } from "@/core/runtime/bus"
@@ -38,6 +39,7 @@ const MainLive = Layer.mergeAll(
   RuntimeBusFromConfigLive.pipe(Layer.provide(AppConfigLive)),
   OtelLive.pipe(Layer.provide(AppConfigLive)),
   WorkerPoolFromConfigLive.pipe(Layer.provide(AppConfigLive)),
+  LogLevelLive.pipe(Layer.provide(AppConfigLive)),
 )
 
 const program: Effect.Effect<

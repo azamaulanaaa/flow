@@ -38,7 +38,7 @@ npm start
 | Var | Default | Description |
 | --- | ------- | ----------- |
 | `SERVICE_NAME` | `workflow-runner` | OTel service name |
-| `LOG_LEVEL` | `INFO` | log level |
+| `LOG_LEVEL` | `INFO` | minimum log level (TRACE,DEBUG,INFO,WARN,ERROR,FATAL,NONE,ALL) |
 | `QUEUE_CAPACITY` | `128` | run-queue bound (backpressure) |
 | `RUNTIME_WORKERS` | `4` | runtime worker fibers draining the queue |
 | `CRON_EXPRESSION` | `*/1 * * * *` | schedule for the bundled cron trigger |
