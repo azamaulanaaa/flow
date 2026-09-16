@@ -43,6 +43,9 @@ npm start
 | `CRON_EXPRESSION` | `*/1 * * * *` | schedule for the bundled cron trigger |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | OTLP HTTP endpoint; unset = console exporter |
 | `SHUTDOWN_TIMEOUT_MS` | `10000` | max wait to drain queued + in-flight runs on SIGINT/SIGTERM |
+| `WORKER_POOL_ENABLED` | `false` | run functions in `node:worker_threads` (true multithreading for CPU-bound work) |
+| `WORKER_POOL_SIZE` | CPUs | worker thread count |
+| `WORKER_POOL_TIMEOUT_MS` | `30000` | per-function worker timeout (falls back to in-process) |
 
 ## Shutdown
 
@@ -60,6 +63,7 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
   - `core/functions/registry.ts` – `makeFunction`, `FunctionRegistry`
   - `core/workflows/definition.ts`, `runner.ts` – DAG validation + parallel runner
   - `core/runtime/bus.ts`, `service.ts` – Queue/PubSub bus + worker pool
+  - `core/runtime/worker-pool.ts`, `function-worker.ts` – thread pool (opt-in true parallelism)
   - `core/triggers/trigger.ts`, `cron.ts` – `Trigger` interface + impls
   - `core/config.ts`, `core/otel.ts` – env config, OTel SDK layer
 - `src/functions/` – **put your functions here**, one file per function:
@@ -116,6 +120,25 @@ Levels run sequentially, nodes in a level run in parallel via `Effect.all`.
 
 Use `makeCronTrigger({ schedule, workflow })` or `makeOnceTrigger({ workflow })`
 from `@/core/triggers/cron`. Wire `trigger.start` in `src/index.ts` (scoped).
+
+## Thread pool (opt-in true parallelism)
+
+Fibers already overlap I/O-bound work. For CPU-bound functions (parse, crypto,
+compute), set `WORKER_POOL_ENABLED=true`: `runNode` routes each function call
+through a fixed pool of `node:worker_threads` (`src/core/runtime/worker-pool.ts`),
+sized by `WORKER_POOL_SIZE`. Workers boot the same bundle in dispatcher mode
+(`src/core/runtime/function-worker.ts`, no extra build artifact) and run
+registry functions by name.
+
+Rules and limits:
+- Only `input`/`output` cross the boundary via structured clone — keep them
+  plain data. Unserializable payloads fail fast and fall back to in-process.
+- Every pool failure (disabled, dead workers, `WORKER_POOL_TIMEOUT_MS`, worker
+  errors) falls back to in-process execution, so the pool is best-effort.
+  Fallback on timeout is at-least-once: keep pooled functions idempotent.
+- Trace spans stay on the main thread around `execute`; worker `Effect.log`
+  lines go to inherited stdout without OTel enrichment.
+- Threads are terminated on scope close (graceful shutdown ordering applies).
 
 ## License
 
