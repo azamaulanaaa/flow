@@ -146,10 +146,16 @@ export const startRuntime = (
  * Wait until the run queue is empty and no runs are in flight.
  * Used during graceful shutdown so in-flight workflows finish before
  * layers (OTel flush) are released. Caller should bound with a timeout.
+ *
+ * `pollMs` controls the idle-check interval (default 25ms). Lower values
+ * wake faster under load; higher values reduce timer churn when idle.
  */
-export const waitForIdle: Effect.Effect<void, never, RuntimeBus> =
+export const waitForIdleWithPoll = (
+  pollMs = 25,
+): Effect.Effect<void, never, RuntimeBus> =>
   Effect.gen(function* () {
     const bus = yield* RuntimeBus
+    const interval = Math.max(1, Math.floor(pollMs))
     while (true) {
       const size = yield* Queue.size(bus.queue)
       const active = yield* Ref.get(bus.inflight)
@@ -158,6 +164,9 @@ export const waitForIdle: Effect.Effect<void, never, RuntimeBus> =
       if (size <= 0 && active === 0) {
         return
       }
-      yield* Effect.sleep("25 millis")
+      yield* Effect.sleep(`${interval} millis`)
     }
   })
+
+/** Default idle wait (25ms poll). Prefer {@link waitForIdleWithPoll} to tune. */
+export const waitForIdle: Effect.Effect<void, never, RuntimeBus> = waitForIdleWithPoll(25)

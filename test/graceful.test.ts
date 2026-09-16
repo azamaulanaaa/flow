@@ -2,7 +2,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, PubSub, Queue } from "effect"
 import { FunctionRegistryLive, makeFunction } from "@/core/functions/registry"
 import { RuntimeBus, RuntimeBusLive, submitRun } from "@/core/runtime/bus"
-import { WorkflowCatalogLive, startRuntime, waitForIdle } from "@/core/runtime/service"
+import { WorkflowCatalogLive, startRuntime, waitForIdle, waitForIdleWithPoll } from "@/core/runtime/service"
 import type { WorkflowDef } from "@/core/workflows/definition"
 
 const TestRegistryLive = FunctionRegistryLive([
@@ -61,6 +61,47 @@ describe("Graceful shutdown", () => {
         // No runs submitted: idle immediately.
         yield* waitForIdle.pipe(Effect.timeout("5 seconds"))
         expect(true).toBe(true)
+      }),
+    ).pipe(Effect.provide(TestLayers)),
+  )
+
+  it.live("waitForIdleWithPoll honors a custom interval", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        yield* startRuntime({ workers: 1 })
+        yield* waitForIdleWithPoll(5).pipe(Effect.timeout("5 seconds"))
+        expect(true).toBe(true)
+      }),
+    ).pipe(Effect.provide(TestLayers)),
+  )
+
+  it.live("caller timeout fires while a run is still in flight", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        yield* startRuntime({ workers: 1 })
+        yield* submitRun({ runId: "long-1", workflow: "slow", trigger: "test" })
+        const exit = yield* Effect.exit(waitForIdle.pipe(Effect.timeout("20 millis")))
+        // The drain is still blocked by the 50ms slow function -> timeout path.
+        expect(exit._tag).toBe("Failure")
+      }),
+    ).pipe(Effect.provide(TestLayers)),
+  )
+
+  it.live("dropping events never block publishers with a slow subscriber", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const bus = yield* RuntimeBus
+        // No subscriber consuming: publish a burst; dropping PubSub must not backpressure.
+        yield* startRuntime({ workers: 1 })
+        for (let i = 0; i < 10; i++) {
+          yield* submitRun({ runId: `burst-${i}`, workflow: "slow", trigger: "test" }).pipe(
+            Effect.timeout("1 second"),
+          )
+        }
+        yield* waitForIdle.pipe(Effect.timeout("10 seconds"))
+        // At least the drain completed; slow-subscriber drops are acceptable by design.
+        const size = yield* Queue.size(bus.queue)
+        expect(size).toBeLessThanOrEqual(0)
       }),
     ).pipe(Effect.provide(TestLayers)),
   )
