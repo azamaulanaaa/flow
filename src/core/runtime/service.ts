@@ -22,9 +22,15 @@ const publishEvent = (event: RunEvent): Effect.Effect<void, never, RuntimeBus> =
 
 const failureReason = (cause: Cause.Cause<unknown>): string => Cause.pretty(cause, { renderErrorCause: true })
 
+export interface RuntimeWorkerOptions {
+  readonly workflowConcurrency?: number
+  readonly nodeTimeoutMs?: number
+  readonly retryAttempts?: number
+}
+
 const handleRequest = (
   request: RunRequest,
-  options: { readonly workflowConcurrency?: number } = {},
+  options: RuntimeWorkerOptions = {},
 ): Effect.Effect<void, never, RuntimeBus | WorkflowCatalog | FunctionRegistry> =>
   Effect.gen(function* () {
     const bus = yield* RuntimeBus
@@ -48,7 +54,12 @@ const handleRequest = (
       return
     }
     const exit = yield* Effect.exit(
-      runWorkflow(def, { defaultInput: request.input, concurrency: options.workflowConcurrency }),
+      runWorkflow(def, {
+        defaultInput: request.input,
+        concurrency: options.workflowConcurrency,
+        nodeTimeoutMs: options.nodeTimeoutMs,
+        retryAttempts: options.retryAttempts,
+      }),
     )
     if (exit._tag === "Success") {
       const outputs = exit.value as WorkflowOutputs
@@ -72,7 +83,7 @@ const handleRequest = (
     }),
   )
 
-const makeWorker = (options: { readonly workflowConcurrency?: number } = {}) =>
+const makeWorker = (options: RuntimeWorkerOptions = {}) =>
   Effect.gen(function* () {
     const bus = yield* RuntimeBus
     while (true) {
@@ -89,15 +100,19 @@ const makeWorker = (options: { readonly workflowConcurrency?: number } = {}) =>
  * every outcome is captured into a `RunEvent`.
  */
 export const startRuntime = (
-  options: { readonly workers?: number; readonly workflowConcurrency?: number } = {},
+  options: { readonly workers?: number } & RuntimeWorkerOptions = {},
 ): Effect.Effect<void, never, RuntimeBus | WorkflowCatalog | FunctionRegistry | Scope> =>
   Effect.gen(function* () {
     const count = options.workers ?? 4
     for (let i = 0; i < count; i++) {
       yield* Effect.forkScoped(
-        Effect.forever(makeWorker({ workflowConcurrency: options.workflowConcurrency })).pipe(
-          Effect.withSpan("runtime.worker"),
-        ),
+        Effect.forever(
+          makeWorker({
+            workflowConcurrency: options.workflowConcurrency,
+            nodeTimeoutMs: options.nodeTimeoutMs,
+            retryAttempts: options.retryAttempts,
+          }),
+        ).pipe(Effect.withSpan("runtime.worker")),
       )
     }
     yield* Effect.log(`Runtime started with ${count} workers`)

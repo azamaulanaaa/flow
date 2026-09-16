@@ -15,6 +15,8 @@ export interface AppConfig {
   readonly queueCapacity: number
   readonly runtimeWorkers: number
   readonly workflowConcurrency: number
+  readonly workflowNodeTimeoutMs: number
+  readonly workflowRetryAttempts: number
   readonly cronExpression: string
   readonly otlpEndpoint: string | undefined
   readonly shutdownTimeoutMs: number
@@ -34,6 +36,8 @@ const AppConfigFromEnv = Config.all({
   queueCapacity: Config.integer("QUEUE_CAPACITY").pipe(Config.withDefault(128)),
   runtimeWorkers: Config.integer("RUNTIME_WORKERS").pipe(Config.withDefault(4)),
   workflowConcurrency: Config.integer("WORKFLOW_CONCURRENCY").pipe(Config.withDefault(32)),
+  workflowNodeTimeoutMs: Config.integer("WORKFLOW_NODE_TIMEOUT_MS").pipe(Config.withDefault(0)),
+  workflowRetryAttempts: Config.integer("WORKFLOW_RETRY_ATTEMPTS").pipe(Config.withDefault(0)),
   cronExpression: Config.string("CRON_EXPRESSION").pipe(Config.withDefault("*/1 * * * *")),
   shutdownTimeoutMs: Config.integer("SHUTDOWN_TIMEOUT_MS").pipe(Config.withDefault(10_000)),
   workerPoolEnabled: Config.boolean("WORKER_POOL_ENABLED").pipe(Config.withDefault(false)),

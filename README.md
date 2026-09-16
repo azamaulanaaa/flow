@@ -42,6 +42,8 @@ npm start
 | `QUEUE_CAPACITY` | `128` | run-queue bound (backpressure) |
 | `RUNTIME_WORKERS` | `4` | runtime worker fibers draining the queue |
 | `WORKFLOW_CONCURRENCY` | `32` | max parallel nodes per DAG level + default node input comes from trigger `input` when node `input` is unset |
+| `WORKFLOW_NODE_TIMEOUT_MS` | `0` | per-node timeout in ms (`0` = disabled); fails the node with `WorkflowNodeTimeoutError`, retried per `WORKFLOW_RETRY_ATTEMPTS` |
+| `WORKFLOW_RETRY_ATTEMPTS` | `0` | extra retry attempts per node after the first try |
 | `CRON_EXPRESSION` | `*/1 * * * *` | schedule for the bundled cron trigger |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | OTLP HTTP endpoint; unset = console exporter |
 | `SHUTDOWN_TIMEOUT_MS` | `10000` | max wait to drain queued + in-flight runs on SIGINT/SIGTERM |

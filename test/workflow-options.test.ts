@@ -1,15 +1,16 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Layer, PubSub, Queue } from "effect"
+import { Effect, Layer, PubSub, Queue, Ref } from "effect"
 import { FunctionRegistryLive, makeFunction } from "@/core/functions/registry"
 import { RuntimeBus, RuntimeBusLive, submitRun } from "@/core/runtime/bus"
 import { WorkflowCatalogLive, startRuntime } from "@/core/runtime/service"
-import { runWorkflow } from "@/core/workflows/runner"
+import { runWorkflow, WorkflowNodeTimeoutError } from "@/core/workflows/runner"
 import type { WorkflowDef } from "@/core/workflows/definition"
 
 const echoRegistry = FunctionRegistryLive([
   makeFunction("echo", (input: unknown) => Effect.succeed(input)),
   makeFunction("const-a", () => Effect.succeed("A")),
   makeFunction("fail", () => Effect.fail(new Error("boom"))),
+  makeFunction("slow", () => Effect.sleep("500 millis").pipe(Effect.as("slow-done"))),
 ])
 
 describe("runWorkflow options", () => {
@@ -54,6 +55,35 @@ describe("runWorkflow options", () => {
       const def: WorkflowDef = { name: "broken", nodes: [{ id: "f", fn: "fail" }] }
       const error = yield* Effect.flip(runWorkflow(def).pipe(Effect.provide(echoRegistry)))
       expect(String(error)).toContain("boom")
+    }),
+  )
+
+  it.live("times out slow nodes with WorkflowNodeTimeoutError", () =>
+    Effect.gen(function* () {
+      const def: WorkflowDef = { name: "slow-flow", nodes: [{ id: "s", fn: "slow" }] }
+      const error = yield* Effect.flip(runWorkflow(def, { nodeTimeoutMs: 50 }).pipe(Effect.provide(echoRegistry)))
+      expect(error).toBeInstanceOf(WorkflowNodeTimeoutError)
+    }),
+  )
+
+  it.effect("retries failing nodes and succeeds on second attempt", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make(0)
+      const flakyRegistry = FunctionRegistryLive([
+        makeFunction("flaky", () =>
+          Effect.gen(function* () {
+            const n = yield* Ref.updateAndGet(calls, (c) => c + 1)
+            if (n < 2) {
+              return yield* Effect.fail(new Error("first-try-boom"))
+            }
+            return "recovered"
+          }),
+        ),
+      ])
+      const def: WorkflowDef = { name: "flaky-flow", nodes: [{ id: "f", fn: "flaky" }] }
+      const outputs = yield* runWorkflow(def, { retryAttempts: 1 }).pipe(Effect.provide(flakyRegistry))
+      expect(outputs.get("f")).toBe("recovered")
+      expect(yield* Ref.get(calls)).toBe(2)
     }),
   )
 })
