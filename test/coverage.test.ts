@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Deferred, Effect, Fiber, Queue } from "effect"
-import { AppConfigService, AppConfigLive } from "@/core/config"
+import { AppConfigService, AppConfigLive, configValidationErrors } from "@/core/config"
+import type { AppConfig } from "@/core/config"
 import { FUNCTION_WORKER_MODE, isFunctionWorkerThread } from "@/core/runtime/function-worker"
 import { RuntimeBus, RuntimeBusLive, submitRun } from "@/core/runtime/bus"
 import { runtimeKind } from "@/core/platform"
@@ -51,6 +52,30 @@ describe("config defaults", () => {
       expect(config.workflowRetryAttempts).toBeGreaterThanOrEqual(0)
       expect(config.shutdownTimeoutMs).toBeGreaterThan(0)
       expect(config.workerPoolTimeoutMs).toBeGreaterThan(0)
+    }).pipe(Effect.provide(AppConfigLive)),
+  )
+
+  it.effect("rejects out-of-range values with readable errors", () =>
+    Effect.gen(function* () {
+      const base = yield* AppConfigService
+      const bad: AppConfig = {
+        ...base,
+        queueCapacity: 0,
+        runtimeWorkers: 0,
+        workflowConcurrency: -1,
+        workflowNodeTimeoutMs: -1,
+        workflowRetryAttempts: -2,
+        shutdownTimeoutMs: 0,
+        workerPoolSize: 0,
+        workerPoolTimeoutMs: 0,
+        logLevel: "VERBOSE",
+        serviceName: "   ",
+        cronExpression: "   ",
+      }
+      const errors = configValidationErrors(bad)
+      expect(errors.length).toBeGreaterThan(5)
+      expect(errors.join("\n")).toContain("QUEUE_CAPACITY")
+      expect(errors.join("\n")).toContain("LOG_LEVEL")
     }).pipe(Effect.provide(AppConfigLive)),
   )
 })
