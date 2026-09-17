@@ -1,9 +1,20 @@
 {
-  "name": "workspace",
+  "name": "workflow-runner",
   "version": "0.1.0",
   "description": "Effect-TS workflow runner with OpenTelemetry tracing",
   "type": "module",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/azamaulanaaa/flow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/azamaulanaaa/flow/issues"
+  },
+  "homepage": "https://github.com/azamaulanaaa/flow#readme",
   "files": [
     "dist"
   ],
@@ -19,7 +30,12 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
-  "keywords": [],
+  "keywords": [
+    "effect-ts",
+    "workflow",
+    "opentelemetry",
+    "cron"
+  ],
   "author": "",
   "license": "(MIT OR Apache-2.0)",
   "engines": {
