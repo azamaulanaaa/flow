@@ -20,7 +20,8 @@ when set) and as span events on the enclosing span — giving both searchable
 streams and correlated waterfall context. `RunFailed` events carry a
 machine-readable `causeTag` (e.g. `UnknownFunctionError`,
 `WorkflowNodeTimeoutError`, `UnknownWorkflow`) alongside the human-readable
-`reason`.
+`reason`; `RunSucceeded` events carry the node `outputs` plus the `skipped`
+ids from `when` gates.
 
 ## Scripts
 
@@ -157,6 +158,24 @@ dependency run in parallel in the same level, and a node with several
 dependencies joins them (see `welcome.ts`: `greet` → `upper` + `count`
 → `report`). DAG cycles, duplicates, and unknown dependencies fail
 fast in `planWorkflow`.
+
+Conditional branches use `when` gates over already-completed outputs:
+
+```ts
+{ id: "notify", fn: "notify", dependsOn: ["check"],
+  when: (outputs) => outputs.get("check") === "ok", ... }
+```
+
+Gates run after all previous levels finish, so they only see earlier
+levels (same-level nodes run in parallel). `false` skips the node —
+no registry lookup, no call — but still traced via a
+`workflow.<name>.node.<id>.skipped` span and log. Skipping propagates
+transitively to dependents (their inputs would be incomplete), so
+gating one early node early-stops the rest of the run as a Succeeded
+run with partial outputs. Skipped ids are returned with outputs and on
+the `RunSucceeded` event (`skipped: [...]`, empty when everything ran).
+Like `input` mappers, `when` is data plumbing: keep it pure and total,
+since a throw fails the run.
 
 ```ts
 import { Effect } from "effect"

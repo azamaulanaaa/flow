@@ -17,7 +17,7 @@ describe("runWorkflow options", () => {
   it.effect("uses defaultInput for nodes without explicit input", () =>
     Effect.gen(function* () {
       const def: WorkflowDef = { name: "echo-flow", nodes: [{ id: "e", fn: "echo" }] }
-      const outputs = yield* runWorkflow(def, { defaultInput: { hello: "world" } })
+      const { outputs } = yield* runWorkflow(def, { defaultInput: { hello: "world" } })
       expect(outputs.get("e")).toEqual({ hello: "world" })
     }).pipe(Effect.provide(echoRegistry)),
   )
@@ -28,7 +28,7 @@ describe("runWorkflow options", () => {
         name: "explicit",
         nodes: [{ id: "e", fn: "echo", input: "static" }],
       }
-      const outputs = yield* runWorkflow(def, { defaultInput: "fallback" })
+      const { outputs } = yield* runWorkflow(def, { defaultInput: "fallback" })
       expect(outputs.get("e")).toBe("static")
     }).pipe(Effect.provide(echoRegistry)),
   )
@@ -43,7 +43,7 @@ describe("runWorkflow options", () => {
           { id: "c", fn: "const-a" },
         ],
       }
-      const outputs = yield* runWorkflow(def, { concurrency: 1 })
+      const { outputs } = yield* runWorkflow(def, { concurrency: 1 })
       expect(outputs.get("a")).toBe("A")
       expect(outputs.get("b")).toBe("A")
       expect(outputs.get("c")).toBe("A")
@@ -83,7 +83,7 @@ describe("runWorkflow options", () => {
         ),
       ])
       const def: WorkflowDef = { name: "flaky-flow", nodes: [{ id: "f", fn: "flaky" }] }
-      const outputs = yield* runWorkflow(def, { retryAttempts: 1 }).pipe(
+      const { outputs } = yield* runWorkflow(def, { retryAttempts: 1 }).pipe(
         Effect.provide(flakyRegistry),
       )
       expect(outputs.get("f")).toBe("recovered")

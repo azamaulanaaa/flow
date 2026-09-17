@@ -62,7 +62,7 @@ describe("WorkerPool", () => {
           name: "echo-flow",
           nodes: [{ id: "only", fn: "anything", input: { x: 1 } }],
         }
-        const outputs = yield* runWorkflow(def)
+        const { outputs } = yield* runWorkflow(def)
         // Echo fixture wraps input instead of running a real function.
         expect(outputs.get("only")).toEqual({ echo: { x: 1 } })
       }),
@@ -83,7 +83,7 @@ describe("WorkerPool", () => {
           name: "ping",
           nodes: [{ id: "ping", fn: "ping" }],
         }
-        const outputs = yield* runWorkflow(def)
+        const { outputs } = yield* runWorkflow(def)
         expect(outputs.get("ping")).toBe("pong")
       }),
     ).pipe(
@@ -103,7 +103,7 @@ describe("WorkerPool", () => {
           name: "ping",
           nodes: [{ id: "ping", fn: "ping" }],
         }
-        const outputs = yield* runWorkflow(def)
+        const { outputs } = yield* runWorkflow(def)
         expect(outputs.get("ping")).toBe("pong")
       }),
     ).pipe(

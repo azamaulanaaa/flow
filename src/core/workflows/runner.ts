@@ -10,6 +10,13 @@ import {
 
 export type WorkflowOutputs = ReadonlyMap<string, unknown>
 
+/** A finished run: node outputs plus the ids skipped via `when` gates. */
+export interface WorkflowResult {
+  readonly outputs: WorkflowOutputs
+  /** Skipped node ids, in execution order (level order, definition order within). */
+  readonly skipped: ReadonlyArray<string>
+}
+
 /** Default cap for parallel nodes within a DAG level (avoids unbounded fan-out). */
 export const DEFAULT_LEVEL_CONCURRENCY = 32
 
@@ -90,28 +97,50 @@ const runNode = (
  * Execute a workflow DAG.
  *
  * Levels run sequentially; nodes within a level run concurrently (bounded).
+ * Before each level, every node's `when` gate is evaluated against
+ * already-completed outputs (earlier levels only). A `false` gate — or a
+ * skipped dependency — skips the node, and skipping propagates transitively
+ * to dependents, so gating one node early-stops the rest of the run. Skipped
+ * nodes get their own span and are listed in the returned `skipped` array.
  * Nodes without explicit `input` receive `options.defaultInput`
  * (populated from `RunRequest.input` by the runtime service).
  * `nodeTimeoutMs` bounds each node; `retryAttempts` retries failures/timeouts.
- * Returns node outputs keyed by node id. The whole run is wrapped in a
- * `workflow.<name>` span, so OTel shows trigger → workflow → function nesting.
+ * Returns node outputs keyed by node id plus skipped ids. The whole run is
+ * wrapped in a `workflow.<name>` span, so OTel shows trigger → workflow →
+ * function nesting.
  */
 export const runWorkflow = (
   def: WorkflowDef,
   options: RunWorkflowOptions = {},
-): Effect.Effect<WorkflowOutputs, unknown, FunctionRegistry> =>
+): Effect.Effect<WorkflowResult, unknown, FunctionRegistry> =>
   Effect.gen(function* () {
     const levels = yield* planWorkflow(def)
     const concurrency = Math.max(1, Math.floor(options.concurrency ?? DEFAULT_LEVEL_CONCURRENCY))
     const outputs = new Map<string, unknown>()
+    const skipped: Array<string> = []
+    const skippedIds = new Set<string>()
     for (const level of levels) {
+      const runnable: Array<WorkflowNode> = []
+      for (const node of level) {
+        const blocked = (node.dependsOn ?? []).some((dep) => skippedIds.has(dep))
+        const gated = node.when !== undefined && !node.when(outputs)
+        if (!blocked && !gated) {
+          runnable.push(node)
+          continue
+        }
+        skippedIds.add(node.id)
+        skipped.push(node.id)
+        yield* Effect.log(
+          `Skipping node ${def.name}.${node.id}${blocked ? " (dependency skipped)" : " (when=false)"}`,
+        ).pipe(Effect.withSpan(`workflow.${def.name}.node.${node.id}.skipped`))
+      }
       const results = yield* Effect.all(
-        level.map((node) => runNode(def.name, node, outputs, options)),
+        runnable.map((node) => runNode(def.name, node, outputs, options)),
         { concurrency },
       )
       for (const [id, output] of results) {
         outputs.set(id, output)
       }
     }
-    return outputs as WorkflowOutputs
+    return { outputs: outputs as WorkflowOutputs, skipped } as WorkflowResult
   }).pipe(Effect.withSpan(`workflow.${def.name}`, { attributes: { "workflow.name": def.name } }))

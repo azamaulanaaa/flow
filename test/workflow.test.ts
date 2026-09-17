@@ -71,10 +71,11 @@ describe("planWorkflow", () => {
 describe("runWorkflow", () => {
   it.effect("runs levels in order and stitches outputs into downstream input", () =>
     Effect.gen(function* () {
-      const outputs = yield* runWorkflow(diamond)
+      const { outputs, skipped } = yield* runWorkflow(diamond)
       expect(outputs.get("left")).toBe("A")
       expect(outputs.get("right")).toBe("B")
       expect(outputs.get("join")).toBe("A+B")
+      expect(skipped).toEqual([])
     }).pipe(Effect.provide(TestRegistryLive)),
   )
 })

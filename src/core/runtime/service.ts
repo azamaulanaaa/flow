@@ -1,7 +1,7 @@
 import { Cause, Context, Effect, Layer, PubSub, Queue, Ref } from "effect"
 import type { Scope } from "effect/Scope"
 import { FunctionRegistry } from "@/core/functions/registry"
-import { runWorkflow, type WorkflowOutputs } from "@/core/workflows/runner"
+import { runWorkflow, type WorkflowResult } from "@/core/workflows/runner"
 import type { WorkflowDef } from "@/core/workflows/definition"
 import { RuntimeBus, type RunEvent, type RunRequest } from "@/core/runtime/bus"
 
@@ -87,12 +87,13 @@ const handleRequest = (
         }),
       )
       if (exit._tag === "Success") {
-        const outputs = exit.value as WorkflowOutputs
+        const result = exit.value as WorkflowResult
         yield* publishEvent({
           _tag: "RunSucceeded",
           runId: request.runId,
           workflow: request.workflow,
-          outputs,
+          outputs: result.outputs,
+          skipped: result.skipped,
         })
       } else {
         yield* publishEvent({

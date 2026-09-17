@@ -9,6 +9,16 @@ export interface WorkflowNode {
   readonly fn: string
   readonly input?: NodeInput
   readonly dependsOn?: ReadonlyArray<string>
+  /**
+   * Optional gate over already-completed node outputs. Evaluated after all
+   * previous levels finish, before the node's level runs — so it only sees
+   * earlier levels (same-level nodes run in parallel). `false` skips the
+   * node, and skipping propagates transitively to its dependents.
+   *
+   * Like `input` mappers this is data plumbing, not work: keep it pure and
+   * total (a throw fails the run).
+   */
+  readonly when?: (outputs: ReadonlyMap<string, unknown>) => boolean
 }
 
 export interface WorkflowDef {

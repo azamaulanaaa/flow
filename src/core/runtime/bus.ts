@@ -20,6 +20,8 @@ export type RunEvent =
       readonly runId: string
       readonly workflow: string
       readonly outputs: ReadonlyMap<string, unknown>
+      /** Node ids skipped via `when` gates (empty when everything ran). */
+      readonly skipped: ReadonlyArray<string>
     }
   | {
       readonly _tag: "RunFailed"
