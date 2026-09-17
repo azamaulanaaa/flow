@@ -100,14 +100,14 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
   - `core/config.ts`, `core/otel.ts`, `core/logging.ts` – env config, OTel SDK layer, log-level layer
   - `core/platform.ts` – runtime detection (`node`/`bun`/`deno`) + Deno signal runner
 - `src/functions/` – **put your functions here**, one file per function:
-  - `greet.ts`, `add.ts` – examples using `makeFunction` from `@/core/functions/registry`
+  - `greet.ts`, `upper.ts`, `count.ts`, `report.ts` – tracked steps used by the welcome branches (`add.ts` shows the same shape)
   - `index.ts` – barrel, re-export (registration happens via workflow bundles)
 - `src/triggers/` – **all triggers live here**, one file per trigger kind:
   - `cron.ts` – built-in schedule trigger (`makeCronTrigger`) + usage example
   - `once.ts` – built-in fire-once trigger (`makeOnceTrigger`) + usage example
   - `index.ts` – barrel, re-export
 - `src/workflows/` – **put your workflows here**, one file per workflow bundle:
-  - `welcome.ts` – example `welcomeBundle` owning its workflow + functions (`greet`) + triggers (cron OR once)
+  - `welcome.ts` – example `welcomeBundle`: `greet` diverges into `upper` + `count`, `report` converges both; triggers are cron OR once
   - `index.ts` – barrel, append bundles to `workflowBundles` (derives `exampleWorkflows` / `exampleFunctions`)
 - `src/index.ts` – composition root only (boots every bundle in `workflowBundles`, no per-workflow wiring)
 - `test/` – Vitest + `@effect/vitest` suites per module
@@ -144,6 +144,19 @@ function sequence runs whichever way fires first. Use `makeBundle`
 so TypeScript statically rejects nodes referencing functions that are
 not listed in `functions`, and pass the workflow object (not a magic
 string) to trigger factories.
+
+Every step must be a tracked registry function: workflows declare DAG
+wiring and input plumbing only — there is no place to inline work, so
+nothing escapes tracing (`function.<name>` spans, registry lookup).
+The `input` mappers (`(outputs) => ({...})`) only reshape data between
+steps; annotate their param as `ReadonlyMap<string, unknown>` (required
+alongside `as const`).
+
+Branches diverge and converge through `dependsOn`: nodes sharing a
+dependency run in parallel in the same level, and a node with several
+dependencies joins them (see `welcome.ts`: `greet` → `upper` + `count`
+→ `report`). DAG cycles, duplicates, and unknown dependencies fail
+fast in `planWorkflow`.
 
 ```ts
 import { Effect } from "effect"
