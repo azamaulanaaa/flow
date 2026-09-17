@@ -97,7 +97,8 @@ if (
   !isMainThread &&
   (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE
 ) {
-  await runFunctionWorkerEntry()
+  // Dispatcher mode: serve the app registry (injected — core has no app imports).
+  await runFunctionWorkerEntry(FunctionRegistryLive([...exampleFunctions]))
 } else if (runtimeKind() === "deno") {
   await runWithDenoSignals(main)
 } else {

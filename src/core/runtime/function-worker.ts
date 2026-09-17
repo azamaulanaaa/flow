@@ -1,7 +1,6 @@
 import { isMainThread, parentPort, workerData } from "node:worker_threads"
-import { Effect } from "effect"
-import { FunctionRegistryLive, runFunction } from "@/core/functions/registry"
-import { exampleFunctions } from "@/workflows"
+import { Effect, Layer } from "effect"
+import { FunctionRegistry, runFunction } from "@/core/functions/registry"
 
 /**
  * `workerData.mode` value that boots the function dispatcher instead of the app.
@@ -25,8 +24,6 @@ export const isFunctionWorkerThread = (): boolean =>
   !isMainThread &&
   (workerData as { readonly mode?: unknown } | undefined)?.mode === FUNCTION_WORKER_MODE
 
-const RegistryLayer = FunctionRegistryLive([...exampleFunctions])
-
 const serializeError = (error: unknown): string => {
   if (typeof error === "object" && error !== null && "_tag" in error) {
     const tag = (error as { readonly _tag: unknown })._tag
@@ -41,15 +38,18 @@ const serializeError = (error: unknown): string => {
 /**
  * Worker-thread entrypoint: serves `runFunction` requests over `parentPort`.
  *
- * The worker loads the same function registry modules as the main thread and
- * looks functions up by name, so only `input`/`output` cross the thread
- * boundary (structured clone). Never returns; the parent terminates the
- * worker on pool shutdown.
+ * The registry layer is injected by the composition root (`src/index.ts`),
+ * which imports the app's functions from `src/workflows/*` — core never
+ * imports app code, so workers always serve the same registry as main.
+ * Only `input`/`output` cross the thread boundary (structured clone).
+ * Never returns; the parent terminates the worker on pool shutdown.
  *
  * No OTel layer here by design: spans stay on the main thread around
  * `WorkerPool.execute`. Worker `Effect.log` calls go to inherited stdout.
  */
-export const runFunctionWorkerEntry = async (): Promise<never> => {
+export const runFunctionWorkerEntry = (
+  registry: Layer.Layer<FunctionRegistry, unknown>,
+): Promise<never> => {
   const port = parentPort
   if (port === null) {
     throw new Error("function worker started without parentPort")
@@ -60,7 +60,7 @@ export const runFunctionWorkerEntry = async (): Promise<never> => {
       try {
         const output = await Effect.runPromise(
           runFunction<unknown, unknown>(message.fn, message.input).pipe(
-            Effect.provide(RegistryLayer),
+            Effect.provide(registry as Layer.Layer<FunctionRegistry>),
           ),
         )
         response = { id: message.id, ok: true, output }
