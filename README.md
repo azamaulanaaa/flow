@@ -93,7 +93,7 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
 
 - `src/core/` – framework, do not put business logic here:
   - `core/functions/registry.ts` – `makeFunction`, `FunctionRegistry`
-  - `core/workflows/definition.ts`, `runner.ts` – DAG validation + parallel runner
+  - `core/workflows/definition.ts`, `runner.ts`, `bundle.ts` – DAG validation + parallel runner + `WorkflowBundle` (workflow owns its functions + triggers)
   - `core/runtime/bus.ts`, `service.ts` – Queue/PubSub bus + runtime workers, drain, typed failures
   - `core/runtime/worker-pool.ts`, `function-worker.ts` – thread pool (opt-in true parallelism)
   - `core/triggers/trigger.ts`, `cron.ts` – `Trigger` interface + impls
@@ -101,11 +101,14 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
   - `core/platform.ts` – runtime detection (`node`/`bun`/`deno`) + Deno signal runner
 - `src/functions/` – **put your functions here**, one file per function:
   - `greet.ts`, `add.ts` – examples using `makeFunction` from `@/core/functions/registry`
-  - `index.ts` – barrel, re-export + append to `exampleFunctions`
-- `src/workflows/` – **put your workflows here**, one file per workflow:
-  - `welcome.ts` – example referencing function names by string (`fn: "greet"`)
-  - `index.ts` – barrel, re-export + append to `exampleWorkflows`
-- `src/index.ts` – composition root only (wires `core/*` + `functions` + `workflows`, no logic)
+  - `index.ts` – barrel, re-export (registration happens via workflow bundles)
+- `src/triggers/` – **put your triggers here**, one file per trigger:
+  - `welcome-cron.ts` – example factory `(config) => makeCronTrigger({ schedule: config.cronExpression, workflow: "welcome" })`
+  - `index.ts` – barrel, re-export
+- `src/workflows/` – **put your workflows here**, one file per workflow bundle:
+  - `welcome.ts` – example `welcomeBundle` owning its workflow + functions (`greet`) + triggers (`makeWelcomeCronTrigger`)
+  - `index.ts` – barrel, append bundles to `workflowBundles` (derives `exampleWorkflows` / `exampleFunctions`)
+- `src/index.ts` – composition root only (boots every bundle in `workflowBundles`, no per-workflow wiring)
 - `test/` – Vitest + `@effect/vitest` suites per module
 
 Internal imports use the `@/` alias for `src/` (extensionless, e.g.
@@ -128,34 +131,62 @@ export const myFn = makeFunction<{ who: string }, string>("my-fn", (input) =>
 )
 ```
 
-Then register in `src/functions/index.ts`:
-`export * from "./<name>"` + append to `exampleFunctions`.
+ Then re-export from `src/functions/index.ts` (`export * from "./<name>"`)
+and list the function in your workflow's bundle (`functions: [...]`).
 Name must match `fn:` used in workflows.
 
 ### Add a workflow — `src/workflows/<name>.ts`
 
-```ts
-import type { WorkflowDef } from "@/core/workflows/definition"
+A workflow file owns its bundle: the DAG plus the functions it calls
+and the triggers that start it. Reference function names by string
+(`fn: "my-fn"`) and list the matching `FunctionDef`s so the registry
+stays in sync.
 
-export const myFlow: WorkflowDef = {
+```ts
+import { Effect } from "effect"
+import type { WorkflowBundle } from "@/core/workflows/bundle"
+import type { WorkflowDef } from "@/core/workflows/definition"
+import { myFn } from "@/functions/<name>"
+import { makeMyTrigger } from "@/triggers/<name>"
+
+export const myWorkflow: WorkflowDef = {
   name: "my-flow",
   nodes: [
     { id: "a", fn: "my-fn", input: { who: "world" } },
     { id: "b", fn: "other-fn", dependsOn: ["a"], input: (outputs) => ({ prev: outputs.get("a") }) },
   ],
 }
+
+export const myBundle: WorkflowBundle = {
+  workflow: myWorkflow,
+  functions: [myFn],
+  makeTriggers: (config) =>
+    Effect.map(makeMyTrigger(config), (trigger) => [trigger]),
+}
 ```
 
-Then register in `src/workflows/index.ts` + trigger it via cron/`makeOnceTrigger`.
-Levels run sequentially, nodes in a level run in parallel via `Effect.all`
-(bounded by `WORKFLOW_CONCURRENCY`, default 32). Nodes without explicit `input`
-receive the trigger's run `input`; per-node timeout (`WORKFLOW_NODE_TIMEOUT_MS`,
-`0` = disabled) and retries (`WORKFLOW_RETRY_ATTEMPTS`) are opt-in.
+Then append `myBundle` to `workflowBundles` in `src/workflows/index.ts`.
+`src/index.ts` boots every bundle generically — no per-workflow wiring
+in `main`. Levels run sequentially, nodes in a level run in parallel via
+`Effect.all` (bounded by `WORKFLOW_CONCURRENCY`, default 32). Nodes
+without explicit `input` receive the trigger's run `input`; per-node
+timeout (`WORKFLOW_NODE_TIMEOUT_MS`, `0` = disabled) and retries
+(`WORKFLOW_RETRY_ATTEMPTS`) are opt-in.
 
-### Add a trigger
+### Add a trigger — `src/triggers/<name>.ts`
 
-Use `makeCronTrigger({ schedule, workflow })` or `makeOnceTrigger({ workflow })`
-from `@/core/triggers/cron`. Wire `trigger.start` in `src/index.ts` (scoped).
+```ts
+import { makeCronTrigger } from "@/core/triggers/cron"
+import type { AppConfig } from "@/core/config"
+
+export const makeMyTrigger = (config: AppConfig) =>
+  makeCronTrigger({ schedule: config.cronExpression, workflow: "my-flow" })
+```
+
+Then re-export from `src/triggers/index.ts` and reference the factory
+in your workflow's bundle (`makeTriggers`). Use `makeOnceTrigger({
+workflow })` from `@/core/triggers/cron` for boot hooks, tests, and
+manual runs.
 
 ## Thread pool (opt-in true parallelism)
 

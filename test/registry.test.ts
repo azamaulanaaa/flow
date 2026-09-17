@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
-import { exampleFunctions } from "@/functions"
+import { exampleFunctions } from "@/workflows"
 import {
   FunctionRegistryLive,
   UnknownFunctionError,

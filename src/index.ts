@@ -15,9 +15,8 @@ import {
   WorkflowCatalogLive,
 } from "@/core/runtime/service"
 import { WorkerPool, WorkerPoolLive } from "@/core/runtime/worker-pool"
-import { makeCronTrigger } from "@/core/triggers/cron"
-import { exampleFunctions } from "@/functions"
-import { exampleWorkflows } from "@/workflows"
+import { makeBundleTriggers } from "@/core/workflows/bundle"
+import { exampleFunctions, exampleWorkflows, workflowBundles } from "@/workflows"
 
 /** Bus capacity comes from env config so deploys can tune backpressure. */
 const RuntimeBusFromConfigLive: Layer.Layer<RuntimeBus, never, AppConfigService> =
@@ -59,15 +58,16 @@ const program: Effect.Effect<
     retryAttempts: config.workflowRetryAttempts,
   })
 
-  const trigger = yield* makeCronTrigger({
-    schedule: config.cronExpression,
-    workflow: "welcome",
-  })
-  yield* trigger.start
+  const triggerTags: Array<string> = []
+  for (const bundle of workflowBundles) {
+    const triggers = yield* makeBundleTriggers([bundle], config)
+    for (const trigger of triggers) {
+      yield* trigger.start
+      triggerTags.push(`${trigger.tag} -> ${bundle.workflow.name}`)
+    }
+  }
 
-  yield* Effect.log(
-    `Service ${config.serviceName} started: cron (${config.cronExpression}) -> welcome workflow`,
-  )
+  yield* Effect.log(`Service ${config.serviceName} started: ${triggerTags.join(", ")}`)
   // Graceful exit: the runner interrupts Effect.never on SIGINT/SIGTERM.
   // forkScoped children (trigger, workers) stop in LIFO order, then this
   // finalizer drains queued + in-flight runs (bounded by shutdownTimeoutMs)

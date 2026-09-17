@@ -1,7 +1,7 @@
 import { isMainThread, parentPort, workerData } from "node:worker_threads"
 import { Effect } from "effect"
 import { FunctionRegistryLive, runFunction } from "@/core/functions/registry"
-import { exampleFunctions } from "@/functions"
+import { exampleFunctions } from "@/workflows"
 
 /**
  * `workerData.mode` value that boots the function dispatcher instead of the app.
