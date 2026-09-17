@@ -93,20 +93,21 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
 
 - `src/core/` – framework, do not put business logic here:
   - `core/functions/registry.ts` – `makeFunction`, `FunctionRegistry`
-  - `core/workflows/definition.ts`, `runner.ts`, `bundle.ts` – DAG validation + parallel runner + `WorkflowBundle` (workflow owns its functions + triggers)
+  - `core/workflows/definition.ts`, `runner.ts`, `bundle.ts` – DAG validation + parallel runner + `WorkflowBundle` / `makeBundle` (workflow owns its functions + triggers, statically checked)
   - `core/runtime/bus.ts`, `service.ts` – Queue/PubSub bus + runtime workers, drain, typed failures
   - `core/runtime/worker-pool.ts`, `function-worker.ts` – thread pool (opt-in true parallelism)
-  - `core/triggers/trigger.ts`, `cron.ts` – `Trigger` interface + impls
+  - `core/triggers/trigger.ts` – the `Trigger` signature every trigger follows (`tag` + scoped `start`)
   - `core/config.ts`, `core/otel.ts`, `core/logging.ts` – env config, OTel SDK layer, log-level layer
   - `core/platform.ts` – runtime detection (`node`/`bun`/`deno`) + Deno signal runner
 - `src/functions/` – **put your functions here**, one file per function:
   - `greet.ts`, `add.ts` – examples using `makeFunction` from `@/core/functions/registry`
   - `index.ts` – barrel, re-export (registration happens via workflow bundles)
-- `src/triggers/` – **put your triggers here**, one file per trigger:
-  - `welcome-cron.ts` – example factory `(config) => makeCronTrigger({ schedule: config.cronExpression, workflow: "welcome" })`
+- `src/triggers/` – **all triggers live here**, one file per trigger kind:
+  - `cron.ts` – built-in schedule trigger (`makeCronTrigger`) + usage example
+  - `once.ts` – built-in fire-once trigger (`makeOnceTrigger`) + usage example
   - `index.ts` – barrel, re-export
 - `src/workflows/` – **put your workflows here**, one file per workflow bundle:
-  - `welcome.ts` – example `welcomeBundle` owning its workflow + functions (`greet`) + triggers (`makeWelcomeCronTrigger`)
+  - `welcome.ts` – example `welcomeBundle` owning its workflow + functions (`greet`) + triggers (cron OR once)
   - `index.ts` – barrel, append bundles to `workflowBundles` (derives `exampleWorkflows` / `exampleFunctions`)
 - `src/index.ts` – composition root only (boots every bundle in `workflowBundles`, no per-workflow wiring)
 - `test/` – Vitest + `@effect/vitest` suites per module
@@ -123,7 +124,7 @@ tsup (build) and tsx (dev).
 import { Effect } from "effect"
 import { makeFunction } from "@/core/functions/registry"
 
-export const myFn = makeFunction<{ who: string }, string>("my-fn", (input) =>
+export const myFn = makeFunction("my-fn", (input: { who: string }) =>
   Effect.gen(function* () {
     yield* Effect.log(`hello ${input.who}`)
     return `hi ${input.who}`
@@ -138,30 +139,37 @@ Name must match `fn:` used in workflows.
 ### Add a workflow — `src/workflows/<name>.ts`
 
 A workflow file owns its bundle: the DAG plus the functions it calls
-and the triggers that start it. Reference function names by string
-(`fn: "my-fn"`) and list the matching `FunctionDef`s so the registry
-stays in sync.
+and the triggers that start it. Triggers act as an OR — the same
+function sequence runs whichever way fires first. Use `makeBundle`
+so TypeScript statically rejects nodes referencing functions that are
+not listed in `functions`, and pass the workflow object (not a magic
+string) to trigger factories.
 
 ```ts
 import { Effect } from "effect"
-import type { WorkflowBundle } from "@/core/workflows/bundle"
+import { makeBundle } from "@/core/workflows/bundle"
 import type { WorkflowDef } from "@/core/workflows/definition"
 import { myFn } from "@/functions/<name>"
-import { makeMyTrigger } from "@/triggers/<name>"
+import { otherFn } from "@/functions/<other-name>"
+import { makeCronTrigger } from "@/triggers/cron"
+import { makeOnceTrigger } from "@/triggers/once"
 
-export const myWorkflow: WorkflowDef = {
+export const myWorkflow = {
   name: "my-flow",
   nodes: [
     { id: "a", fn: "my-fn", input: { who: "world" } },
     { id: "b", fn: "other-fn", dependsOn: ["a"], input: (outputs) => ({ prev: outputs.get("a") }) },
   ],
-}
+} as const satisfies WorkflowDef
 
-export const myBundle: WorkflowBundle = {
+export const myBundle = makeBundle({
   workflow: myWorkflow,
-  functions: [myFn],
+  functions: [myFn, otherFn],
   makeTriggers: (config) =>
-    Effect.map(makeMyTrigger(config), (trigger) => [trigger]),
+    Effect.all([
+      makeCronTrigger({ schedule: config.cronExpression, workflow: myWorkflow }),
+      Effect.succeed(makeOnceTrigger({ workflow: myWorkflow })),
+    ]),
 }
 ```
 
@@ -173,20 +181,20 @@ without explicit `input` receive the trigger's run `input`; per-node
 timeout (`WORKFLOW_NODE_TIMEOUT_MS`, `0` = disabled) and retries
 (`WORKFLOW_RETRY_ATTEMPTS`) are opt-in.
 
-### Add a trigger — `src/triggers/<name>.ts`
+### Add a trigger — `src/triggers/<kind>.ts`
 
-```ts
-import { makeCronTrigger } from "@/core/triggers/cron"
-import type { AppConfig } from "@/core/config"
+A trigger is any module that follows the `Trigger` signature from
+`@/core/triggers/trigger` (`tag` + scoped `start` that `submitRun`s).
+Built-ins (`cron.ts`, `once.ts`) double as examples — copy one to add
+a kind (webhook, queue consumer, ...), re-export from
+`src/triggers/index.ts`, and reference it in your workflow's
+`makeTriggers` alongside the others (OR semantics).
 
-export const makeMyTrigger = (config: AppConfig) =>
-  makeCronTrigger({ schedule: config.cronExpression, workflow: "my-flow" })
-```
-
-Then re-export from `src/triggers/index.ts` and reference the factory
-in your workflow's bundle (`makeTriggers`). Use `makeOnceTrigger({
-workflow })` from `@/core/triggers/cron` for boot hooks, tests, and
-manual runs.
+Static checks guard the wiring end to end: `makeBundle` rejects
+unknown `fn:` names, trigger factories accept the workflow object so
+renames stay in sync, and fallible constructors (e.g. cron parsing)
+expose a typed Effect error channel (`Cron.ParseError`) instead of
+throwing — `test/bundle.test.ts` locks all three in.
 
 ## Thread pool (opt-in true parallelism)
 

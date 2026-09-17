@@ -2,7 +2,7 @@ import { Effect } from "effect"
 import type { AppConfig } from "@/core/config"
 import type { FunctionDef } from "@/core/functions/registry"
 import type { Trigger } from "@/core/triggers/trigger"
-import type { WorkflowDef } from "@/core/workflows/definition"
+import type { WorkflowDef, WorkflowNode } from "@/core/workflows/definition"
 
 /**
  * App-level bundle: a workflow owns the functions it calls and the
@@ -55,3 +55,31 @@ export const makeBundleTriggers = (
     Effect.all(bundles.map((b) => b.makeTriggers(config))),
     (lists) => lists.flat(),
   )
+
+/**
+ * Define a workflow bundle with static checks.
+ *
+ * TypeScript rejects the bundle when a node references a function that is
+ * not listed in `functions` — the `fn:` field is constrained to the literal
+ * names captured by {@link makeFunction}:
+ *
+ * ```ts
+ * // @ts-expect-error "ghost" is not in functions
+ * makeBundle({
+ *   workflow: { name: "x", nodes: [{ id: "a", fn: "ghost" }] },
+ *   functions: [greetFunction],
+ *   makeTriggers: () => Effect.succeed([]),
+ * })
+ * ```
+ */
+export const makeBundle = <const Fns extends ReadonlyArray<FunctionDef<any, any, any>>>(
+  bundle: {
+    readonly workflow: WorkflowDef & {
+      readonly nodes: ReadonlyArray<WorkflowNode & { readonly fn: Fns[number]["name"] }>
+    }
+    readonly functions: Fns
+    readonly makeTriggers: (
+      config: AppConfig,
+    ) => Effect.Effect<ReadonlyArray<Trigger>, unknown>
+  },
+): WorkflowBundle => bundle

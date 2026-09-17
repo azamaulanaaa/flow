@@ -1,23 +1,30 @@
 import { Effect } from "effect"
+import { makeBundle } from "@/core/workflows/bundle"
 import type { WorkflowDef } from "@/core/workflows/definition"
-import type { WorkflowBundle } from "@/core/workflows/bundle"
 import { greetFunction } from "@/functions/greet"
-import { makeWelcomeCronTrigger } from "@/triggers/welcome-cron"
+import { makeCronTrigger } from "@/triggers/cron"
+import { makeOnceTrigger } from "@/triggers/once"
 
-export const welcomeWorkflow: WorkflowDef = {
+export const welcomeWorkflow = {
   name: "welcome",
   nodes: [{ id: "greet", fn: "greet", input: { name: "world" } }],
-}
+} as const satisfies WorkflowDef
 
 /**
  * The `welcome` workflow owns what it runs and what starts it:
  * functions from `src/functions/*`, triggers from `src/triggers/*`.
- * Add new functions/triggers here — `src/index.ts` boots every bundle
- * generically, so no per-workflow wiring lives in `main`.
+ *
+ * Triggers act as an OR — the sequence below runs on every cron tick
+ * and once at boot. Add new functions/triggers here; `src/index.ts`
+ * boots every bundle generically, so no per-workflow wiring lives
+ * in `main`.
  */
-export const welcomeBundle: WorkflowBundle = {
+export const welcomeBundle = makeBundle({
   workflow: welcomeWorkflow,
   functions: [greetFunction],
   makeTriggers: (config) =>
-    Effect.map(makeWelcomeCronTrigger(config), (trigger) => [trigger]),
-}
+    Effect.all([
+      makeCronTrigger({ schedule: config.cronExpression, workflow: welcomeWorkflow }),
+      Effect.succeed(makeOnceTrigger({ workflow: welcomeWorkflow })),
+    ]),
+})

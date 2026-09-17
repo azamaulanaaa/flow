@@ -6,7 +6,7 @@ export interface AddInput {
   readonly b: number
 }
 
-export const addFunction = makeFunction<AddInput, number>("add", (input) =>
+export const addFunction = makeFunction("add", (input: AddInput) =>
   Effect.gen(function* () {
     yield* Effect.log(`Adding ${input.a} + ${input.b}`)
     return input.a + input.b

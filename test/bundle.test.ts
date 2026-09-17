@@ -1,11 +1,15 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
+import { expectTypeOf } from "vitest"
 import type { AppConfig } from "@/core/config"
 import {
   bundleFunctions,
   bundleWorkflows,
+  makeBundle,
   makeBundleTriggers,
+  type WorkflowBundle,
 } from "@/core/workflows/bundle"
+import { greetFunction } from "@/functions/greet"
 import { exampleFunctions, exampleWorkflows, workflowBundles } from "@/workflows"
 
 const testConfig: AppConfig = {
@@ -42,6 +46,16 @@ describe("WorkflowBundles", () => {
     }),
   )
 
+  it.effect("triggers act as an OR over the same function sequence", () =>
+    Effect.gen(function* () {
+      const triggers = yield* makeBundleTriggers(workflowBundles, testConfig)
+      const tags = triggers.map((t) => t.tag)
+      // Welcome runs on every cron tick and once at boot.
+      expect(tags).toContain("cron:* * * * * *")
+      expect(tags).toContain("once")
+    }),
+  )
+
   it.effect("derived registries stay in sync with bundles", () =>
     Effect.gen(function* () {
       expect([...exampleWorkflows].map((w) => w.name)).toEqual(
@@ -50,10 +64,31 @@ describe("WorkflowBundles", () => {
       expect([...exampleFunctions].map((f) => f.name)).toEqual(
         bundleFunctions(workflowBundles).map((f) => f.name),
       )
-      const triggers = yield* makeBundleTriggers(workflowBundles, testConfig)
-      const tags = triggers.map((t) => t.tag)
-      // Welcome bundle's cron trigger is present, owned by the workflow.
-      expect(tags).toContain("cron:* * * * * *")
+    }),
+  )
+
+  it("statically pins bundle and function-name types", () => {
+    expectTypeOf(workflowBundles).toMatchTypeOf<ReadonlyArray<WorkflowBundle>>()
+    // Function names stay literal, so `fn:` references are checked.
+    expectTypeOf(greetFunction.name).toEqualTypeOf<"greet">()
+  })
+
+  it.effect("statically rejects nodes referencing unregistered functions", () =>
+    Effect.gen(function* () {
+      void makeBundle({
+        workflow: {
+          name: "bad",
+          nodes: [
+            {
+              id: "a",
+              // @ts-expect-error "ghost" is not listed in functions
+              fn: "ghost",
+            },
+          ],
+        },
+        functions: [greetFunction],
+        makeTriggers: () => Effect.succeed([]),
+      })
     }),
   )
 })

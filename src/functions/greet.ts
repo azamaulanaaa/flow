@@ -5,7 +5,7 @@ export interface GreetInput {
   readonly name: string
 }
 
-export const greetFunction = makeFunction<GreetInput, string>("greet", (input) =>
+export const greetFunction = makeFunction("greet", (input: GreetInput) =>
   Effect.gen(function* () {
     yield* Effect.log(`Greeting ${input.name}`)
     return `Hello, ${input.name}!`

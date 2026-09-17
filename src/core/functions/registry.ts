@@ -15,11 +15,15 @@ export class UnknownFunctionError extends Data.TaggedError("UnknownFunctionError
  *
  * Each invocation creates a `function.<name>` span; Effect logs inside `run`
  * are exported as span events by the OTel layer.
+ *
+ * The function `name` is captured as a literal type, so
+ * {@link makeBundle} (in `@/core/workflows/bundle`) can statically reject
+ * workflow nodes that reference unregistered functions.
  */
-export const makeFunction = <I, O, E = never>(
-  name: string,
+export const makeFunction = <const Name extends string, I, O, E = never>(
+  name: Name,
   run: (input: I) => Effect.Effect<O, E>,
-): FunctionDef<I, O, E> => ({
+): FunctionDef<I, O, E> & { readonly name: Name } => ({
   name,
   run: (input: I) =>
     Effect.gen(function* () {
