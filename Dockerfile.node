@@ -11,6 +11,8 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
+# Fail the image build on invalid wiring (env defaults, DAGs, cron parsing).
+RUN node dist/validate.js
 
 FROM node:22-slim AS runner
 

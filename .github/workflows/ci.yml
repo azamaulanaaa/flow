@@ -33,7 +33,7 @@ jobs:
       - run: npm run typecheck
 
   node:
-    name: node (test + build + smoke)
+    name: node (test + build + validate + smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +44,7 @@ jobs:
       - run: npm ci
       - run: npm run test
       - run: npm run build
+      - run: node dist/validate.js
       - name: smoke (boot + graceful shutdown)
         run: |
           node dist/index.js > boot.log 2>&1 &
@@ -60,7 +61,7 @@ jobs:
           grep -q "Shutdown complete" boot.log
 
   bun:
-    name: bun (test + smoke)
+    name: bun (test + validate + smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +74,7 @@ jobs:
           bun-version: latest
       - run: npm ci
       - run: bun node_modules/vitest/vitest.mjs run
+      - run: bun src/validate.ts
       - name: smoke (boot + graceful shutdown)
         run: |
           bun src/index.ts > boot.log 2>&1 &
@@ -89,7 +91,7 @@ jobs:
           grep -q "Shutdown complete" boot.log
 
   deno:
-    name: deno (test + smoke)
+    name: deno (test + validate + smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -103,6 +105,7 @@ jobs:
       - run: npm ci
       - run: deno install
       - run: deno task test
+      - run: deno run --allow-all src/validate.ts
       - name: smoke (boot + graceful shutdown)
         run: |
           deno run --allow-all src/index.ts > boot.log 2>&1 &

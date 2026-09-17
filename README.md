@@ -27,12 +27,15 @@ ids from `when` gates.
 
 ```sh
 npm install
-npm run check   # typecheck + format:check + test + build (mirrors CI)
+npm run check   # typecheck + format:check + validate + test + build (mirrors CI)
 npm start       # node dist/index.js (after build)
 ```
 
-Individual steps: `npm run typecheck|test|build|format:check`,
+Individual steps: `npm run typecheck|validate|test|build|format:check`,
 dev via `npm run dev`, watch mode via `npm run test:watch`.
+`npm run validate` dry-runs boot wiring (env ranges, duplicate names, DAG
+shape, `fn:` resolution, cron parsing) without starting triggers or workers —
+run it before `npm start` after editing workflows.
 
 > Note: if `npm install` fails with `EPERM ... symlink` in a restricted
 > sandbox, retry with `npm install --no-bin-links` and invoke the tool
