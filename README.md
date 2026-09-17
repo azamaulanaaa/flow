@@ -68,6 +68,32 @@ On `SIGINT`/`SIGTERM` (`NodeRuntime.runMain` interrupts `Effect.never`):
 
 Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry`.
 
+## Production readiness
+
+- **Fail-fast boot:** env ranges are validated (`QUEUE_CAPACITY`/`RUNTIME_WORKERS`/
+  `WORKFLOW_CONCURRENCY`/`WORKER_POOL_SIZE`/`WORKER_POOL_TIMEOUT_MS` ≥ 1,
+  timeouts/retries ≥ 0, `LOG_LEVEL` allow-listed) and duplicate workflow or
+  function names abort boot with `DuplicateWorkflowError` /
+  `DuplicateFunctionError` — conflicting implementations never shadow each other.
+  Share the same `FunctionDef` reference across bundles to reuse a function.
+- **Run ids:** triggers mint `${workflow}-${uuid}` via `crypto.randomUUID()`,
+  unique across restarts and workers (no `Date.now()` collisions).
+- **Durability (non-goal):** the run queue is in-memory and `RunEvent` delivery
+  is dropping (slow subscribers never block workers). Queued runs are lost on
+  crash; a clean `SIGTERM` drains via `waitForIdle` bounded by
+  `SHUTDOWN_TIMEOUT_MS`. If you need durable queues or exactly-once semantics,
+  put them in a trigger (queue consumer submitting runs) — the core stays
+  ephemeral by design.
+- **At-least-once pool:** every worker-pool failure (including timeout) falls
+  back to in-process execution, so a timed-out function may still complete in
+  the worker. Keep pooled functions idempotent.
+- **Input validation:** node inputs are unvalidated `unknown` between steps —
+  validate inside functions (e.g. Effect Schema) and keep `input`/`when`
+  mappers pure and total (a throw fails the run).
+- **Health:** no HTTP endpoints by design (nothing to probe). Supervise the
+  process itself (systemd/k8s `exec` or OTel `started: ...` logs); add a trigger
+  that exports health if your platform needs an endpoint.
+
 ## Runtimes — Node, Bun, Deno
 
 - **Node** (primary): `npm run check` (`typecheck|format:check|test|build`) or `npm start`. Tests run on Node.
