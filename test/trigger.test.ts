@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Fiber, Layer, Queue, TestClock } from "effect"
 import { RuntimeBus, RuntimeBusLive } from "@/core/runtime/bus"
+import { newRunId } from "@/core/runtime/run-id"
 import { makeCronTrigger } from "@/triggers/cron"
 import { makeOnceTrigger } from "@/triggers/once"
 import { welcomeWorkflow } from "@/workflows/welcome"
@@ -69,5 +70,19 @@ describe("OnceTrigger", () => {
         expect(request?.runId).toContain("welcome-")
       }),
     ).pipe(Effect.provide(TestLayers)),
+  )
+})
+
+describe("newRunId", () => {
+  it.effect("generates unique prefixed ids", () =>
+    Effect.gen(function* () {
+      const ids = new Set([newRunId("welcome"), newRunId("welcome"), newRunId("welcome")])
+      expect(ids.size).toBe(3)
+      for (const id of ids) {
+        expect(id.startsWith("welcome-")).toBe(true)
+        expect(id.length).toBeGreaterThan("welcome-".length + 8)
+      }
+      expect(newRunId("  ")).toContain("run-")
+    }),
   )
 })

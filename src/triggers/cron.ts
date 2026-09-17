@@ -1,5 +1,6 @@
 import { Cron, Effect, Schedule } from "effect"
 import { submitRun } from "@/core/runtime/bus"
+import { newRunId } from "@/core/runtime/run-id"
 import type { Trigger } from "@/core/triggers/trigger"
 import type { WorkflowDef } from "@/core/workflows/definition"
 
@@ -48,11 +49,9 @@ export const makeCronTrigger = (
       return yield* Effect.fail(parsed.left)
     }
     const cron = parsed.right
-    let tick = 0
 
     const fire = Effect.gen(function* () {
-      tick += 1
-      const runId = `${options.runIdPrefix ?? workflow}-${Date.now()}-${tick}`
+      const runId = newRunId(options.runIdPrefix ?? workflow)
       yield* submitRun({
         runId,
         workflow,

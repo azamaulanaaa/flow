@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 import { submitRun } from "@/core/runtime/bus"
+import { newRunId } from "@/core/runtime/run-id"
 import type { Trigger } from "@/core/triggers/trigger"
 import type { WorkflowDef } from "@/core/workflows/definition"
 
@@ -37,7 +38,7 @@ export const makeOnceTrigger = (options: OnceTriggerOptions): Trigger => {
     start: Effect.asVoid(
       Effect.forkScoped(
         submitRun({
-          runId: options.runId ?? `${workflow}-${Date.now()}`,
+          runId: options.runId ?? newRunId(workflow),
           workflow,
           trigger: "once",
           input: options.input,
