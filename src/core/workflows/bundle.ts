@@ -29,16 +29,27 @@ export const bundleWorkflows = (
   bundles: ReadonlyArray<WorkflowBundle>,
 ): ReadonlyArray<WorkflowDef> => bundles.map((b) => b.workflow)
 
-/** All functions across bundles, deduped by name (for `FunctionRegistryLive`). */
+/**
+ * All functions across bundles (for `FunctionRegistryLive`).
+ *
+ * The same `FunctionDef` reference shared across bundles is deduped.
+ * A different implementation under an already-seen name is kept so
+ * `FunctionRegistryLive` fails fast with `DuplicateFunctionError`
+ * instead of silently shadowing one implementation.
+ */
 export const bundleFunctions = (
   bundles: ReadonlyArray<WorkflowBundle>,
 ): ReadonlyArray<FunctionDef<any, any, any>> => {
-  const seen = new Set<string>()
+  const seen = new Map<string, FunctionDef<any, any, any>>()
   const out: Array<FunctionDef<any, any, any>> = []
   for (const bundle of bundles) {
     for (const fn of bundle.functions) {
-      if (!seen.has(fn.name)) {
-        seen.add(fn.name)
+      const existing = seen.get(fn.name)
+      if (existing === undefined) {
+        seen.set(fn.name, fn)
+        out.push(fn)
+      } else if (existing !== fn) {
+        // Conflicting implementation — surface downstream as a duplicate.
         out.push(fn)
       }
     }

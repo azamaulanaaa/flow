@@ -10,6 +10,10 @@ export class UnknownFunctionError extends Data.TaggedError("UnknownFunctionError
   readonly name: string
 }> {}
 
+export class DuplicateFunctionError extends Data.TaggedError("DuplicateFunctionError")<{
+  readonly name: string
+}> {}
+
 /**
  * Define a function with automatic OpenTelemetry tracing.
  *
@@ -37,11 +41,29 @@ export class FunctionRegistry extends Context.Tag("FunctionRegistry")<
   ReadonlyMap<string, FunctionDef<any, any, any>>
 >() {}
 
-/** Build a registry layer from a list of function definitions. */
+/**
+ * Build a registry layer from a list of function definitions.
+ *
+ * Fails fast with {@link DuplicateFunctionError} on duplicate names so
+ * conflicting implementations can never silently shadow each other.
+ * Share the same `FunctionDef` reference across bundles to reuse a function.
+ */
 export const FunctionRegistryLive = (
   defs: ReadonlyArray<FunctionDef<any, any, any>>,
-): Layer.Layer<FunctionRegistry> =>
-  Layer.succeed(FunctionRegistry, new Map(defs.map((d) => [d.name, d])))
+): Layer.Layer<FunctionRegistry, DuplicateFunctionError> =>
+  Layer.effect(
+    FunctionRegistry,
+    Effect.gen(function* () {
+      const map = new Map<string, FunctionDef<any, any, any>>()
+      for (const def of defs) {
+        if (map.has(def.name)) {
+          return yield* Effect.fail(new DuplicateFunctionError({ name: def.name }))
+        }
+        map.set(def.name, def)
+      }
+      return map
+    }),
+  )
 
 /** Look up a function by name, failing with {@link UnknownFunctionError}. */
 export const lookupFunction = (

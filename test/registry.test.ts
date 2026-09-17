@@ -1,10 +1,12 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { exampleFunctions } from "@/workflows"
 import {
+  DuplicateFunctionError,
   FunctionRegistryLive,
   UnknownFunctionError,
   lookupFunction,
+  makeFunction,
   runFunction,
 } from "@/core/functions/registry"
 
@@ -36,5 +38,18 @@ describe("FunctionRegistry", () => {
       expect(error).toBeInstanceOf(UnknownFunctionError)
       expect(error.name).toBe("nope")
     }).pipe(Effect.provide(TestRegistryLive)),
+  )
+
+  it.effect("fails fast on duplicate function names", () =>
+    Effect.gen(function* () {
+      const bad = FunctionRegistryLive([
+        makeFunction("dup", () => Effect.succeed(1)),
+        makeFunction("dup", () => Effect.succeed(2)),
+      ])
+      const exit = yield* Effect.exit(Layer.build(bad).pipe(Effect.scoped))
+      expect(exit._tag).toBe("Failure")
+      const error = yield* Effect.flip(Layer.build(bad).pipe(Effect.scoped))
+      expect(error).toBeInstanceOf(DuplicateFunctionError)
+    }),
   )
 })

@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, PubSub, Queue, Ref } from "effect"
+import { Cause, Context, Data, Effect, Layer, PubSub, Queue, Ref } from "effect"
 import type { Scope } from "effect/Scope"
 import { FunctionRegistry } from "@/core/functions/registry"
 import { runWorkflow, type WorkflowResult } from "@/core/workflows/runner"
@@ -10,10 +10,30 @@ export class WorkflowCatalog extends Context.Tag("WorkflowCatalog")<
   ReadonlyMap<string, WorkflowDef>
 >() {}
 
+export class DuplicateWorkflowError extends Data.TaggedError("DuplicateWorkflowError")<{
+  readonly name: string
+}> {}
+
+/**
+ * Build the catalog layer. Fails fast with {@link DuplicateWorkflowError}
+ * on duplicate workflow names so one workflow can never shadow another.
+ */
 export const WorkflowCatalogLive = (
   defs: ReadonlyArray<WorkflowDef>,
-): Layer.Layer<WorkflowCatalog> =>
-  Layer.succeed(WorkflowCatalog, new Map(defs.map((d) => [d.name, d])))
+): Layer.Layer<WorkflowCatalog, DuplicateWorkflowError> =>
+  Layer.effect(
+    WorkflowCatalog,
+    Effect.gen(function* () {
+      const map = new Map<string, WorkflowDef>()
+      for (const def of defs) {
+        if (map.has(def.name)) {
+          return yield* Effect.fail(new DuplicateWorkflowError({ name: def.name }))
+        }
+        map.set(def.name, def)
+      }
+      return map
+    }),
+  )
 
 const publishEvent = (event: RunEvent): Effect.Effect<void, never, RuntimeBus> =>
   Effect.gen(function* () {

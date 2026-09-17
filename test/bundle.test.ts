@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { expectTypeOf } from "vitest"
 import type { AppConfig } from "@/core/config"
+import { FunctionRegistryLive, makeFunction } from "@/core/functions/registry"
 import {
   bundleFunctions,
   bundleWorkflows,
@@ -89,6 +90,27 @@ describe("WorkflowBundles", () => {
         functions: [greetFunction],
         makeTriggers: () => Effect.succeed([]),
       })
+    }),
+  )
+
+  it.effect("surfaces conflicting function implementations as duplicates", () =>
+    Effect.gen(function* () {
+      const b1 = makeBundle({
+        workflow: { name: "w1", nodes: [{ id: "a", fn: "shared" }] },
+        functions: [makeFunction("shared", () => Effect.succeed(1))],
+        makeTriggers: () => Effect.succeed([]),
+      })
+      const b2 = makeBundle({
+        workflow: { name: "w2", nodes: [{ id: "a", fn: "shared" }] },
+        functions: [makeFunction("shared", () => Effect.succeed(2))],
+        makeTriggers: () => Effect.succeed([]),
+      })
+      // Shared reference dedupes; conflicting impls are preserved for fail-fast.
+      expect(bundleFunctions([b1, b1]).length).toBe(1)
+      const conflicted = bundleFunctions([b1, b2])
+      expect(conflicted.length).toBe(2)
+      const error = yield* Effect.flip(Layer.build(FunctionRegistryLive(conflicted)).pipe(Effect.scoped))
+      expect((error as { _tag: string })._tag).toBe("DuplicateFunctionError")
     }),
   )
 })
