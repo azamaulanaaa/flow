@@ -104,13 +104,14 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
   ```sh
   bun src/index.ts            # dev (replaces `npm run dev` / tsx)
   bun dist/index.js           # built bundle (replaces `npm start`)
-  bun node_modules/vitest/vitest.mjs run   # tests, ~2x faster here
+  npm run test:bun            # tests, ~2x faster here
+  npm run validate:bun        # dry-run boot wiring on Bun
   ```
   `NodeRuntime` is used on Bun
   (dynamic import in `src/index.ts`), worker pool verified working.
 - **Deno** (experimental): `deno.json` maps `@/` (trailing-slash import-map
   form — Deno has no TS `paths` wildcards) and enables `sloppy-imports` for
-  our extensionless + directory imports; tasks (`deno task dev|start|check|test`,
+  our extensionless + directory imports; tasks (`deno task dev|start|check|test|validate`,
   needs `--allow-all` for env/net/threads). `src/index.ts` avoids evaluating
   `@effect/platform-node` on Deno (dynamic import on Node/Bun only) and runs
   via `runWithDenoSignals` (`src/core/platform.ts`), which forks and

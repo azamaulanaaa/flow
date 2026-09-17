@@ -28,9 +28,11 @@
     "scaffold": "node scripts/scaffold.mjs",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:bun": "bun node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "validate": "tsx src/validate.ts"
+    "validate": "tsx src/validate.ts",
+    "validate:bun": "bun src/validate.ts"
   },
   "keywords": [
     "effect-ts",
