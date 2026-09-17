@@ -121,7 +121,7 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
 - `src/core/` – framework, do not put business logic here:
   - `core/functions/registry.ts` – `makeFunction`, `FunctionRegistry`
   - `core/workflows/definition.ts`, `runner.ts`, `bundle.ts` – DAG validation + parallel runner + `WorkflowBundle` / `makeBundle` (workflow owns its functions + triggers, statically checked)
-  - `core/runtime/bus.ts`, `service.ts` – Queue/PubSub bus + runtime workers, drain, typed failures
+  - `core/runtime/bus.ts`, `service.ts`, `run-id.ts` – Queue/PubSub bus + runtime workers, drain, typed failures, UUID run ids
   - `core/runtime/worker-pool.ts`, `function-worker.ts` – thread pool (opt-in true parallelism)
   - `core/triggers/trigger.ts` – the `Trigger` signature every trigger follows (`tag` + scoped `start`)
   - `core/config.ts`, `core/otel.ts`, `core/logging.ts` – env config, OTel SDK layer, log-level layer
