@@ -150,6 +150,9 @@ tsup (build) and tsx (dev).
 
 ### Add a function — `src/functions/<name>.ts`
 
+Scaffold it: `npm run scaffold -- function <name>` (creates the file +
+barrel export; you still add it to your workflow bundle's `functions`).
+
 ```ts
 import { Effect } from "effect"
 import { makeFunction } from "@/core/functions/registry"
@@ -167,6 +170,9 @@ and list the function in your workflow's bundle (`functions: [...]`).
 Name must match `fn:` used in workflows.
 
 ### Add a workflow — `src/workflows/<name>.ts`
+
+Scaffold it: `npm run scaffold -- workflow <name> [--fn greet]` (creates the
+bundle file and registers it in `workflowBundles`; you still adjust nodes).
 
 A workflow file owns its bundle: the DAG plus the functions it calls
 and the triggers that start it. Triggers act as an OR — the same
@@ -243,6 +249,9 @@ timeout (`WORKFLOW_NODE_TIMEOUT_MS`, `0` = disabled) and retries
 (`WORKFLOW_RETRY_ATTEMPTS`) are opt-in.
 
 ### Add a trigger — `src/triggers/<kind>.ts`
+
+Scaffold it: `npm run scaffold -- trigger <kind>` (creates the file + barrel
+export; you still reference it in your workflow bundle's `makeTriggers`).
 
 A trigger is any module that follows the `Trigger` signature from
 `@/core/triggers/trigger` (`tag` + scoped `start` that `submitRun`s).
