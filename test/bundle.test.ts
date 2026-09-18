@@ -1,7 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { expectTypeOf } from "vitest"
-import type { AppConfig } from "@/core/config"
 import { FunctionRegistryLive, makeFunction } from "@/core/functions/registry"
 import {
   bundleFunctions,
@@ -12,22 +11,6 @@ import {
 } from "@/core/workflows/bundle"
 import { greetFunction } from "@/functions/greet"
 import { exampleFunctions, exampleWorkflows, workflowBundles } from "@/workflows"
-
-const testConfig: AppConfig = {
-  serviceName: "test",
-  logLevel: "ERROR",
-  queueCapacity: 16,
-  runtimeWorkers: 1,
-  workflowConcurrency: 8,
-  workflowNodeTimeoutMs: 0,
-  workflowRetryAttempts: 0,
-  cronExpression: "* * * * * *",
-  otlpEndpoint: undefined,
-  shutdownTimeoutMs: 1000,
-  workerPoolEnabled: false,
-  workerPoolSize: 1,
-  workerPoolTimeoutMs: 1000,
-}
 
 describe("WorkflowBundles", () => {
   it.effect("each bundle owns its workflow, functions, and triggers", () =>
@@ -40,8 +23,8 @@ describe("WorkflowBundles", () => {
         for (const node of bundle.workflow.nodes) {
           expect(provided.has(node.fn)).toBe(true)
         }
-        // Triggers build from config without throwing.
-        const triggers = yield* bundle.makeTriggers(testConfig)
+        // Triggers build without throwing (each workflow owns its config).
+        const triggers = yield* bundle.makeTriggers()
         expect(triggers.length).toBeGreaterThan(0)
       }
     }),
@@ -49,7 +32,7 @@ describe("WorkflowBundles", () => {
 
   it.effect("triggers act as an OR over the same function sequence", () =>
     Effect.gen(function* () {
-      const triggers = yield* makeBundleTriggers(workflowBundles, testConfig)
+      const triggers = yield* makeBundleTriggers(workflowBundles)
       const tags = triggers.map((t) => t.tag)
       // Welcome runs on every cron tick and once at boot.
       expect(tags).toContain("cron:* * * * * *")

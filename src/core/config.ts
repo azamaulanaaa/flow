@@ -17,7 +17,6 @@ export interface AppConfig {
   readonly workflowConcurrency: number
   readonly workflowNodeTimeoutMs: number
   readonly workflowRetryAttempts: number
-  readonly cronExpression: string
   readonly otlpEndpoint: string | undefined
   readonly shutdownTimeoutMs: number
   readonly workerPoolEnabled: boolean
@@ -74,9 +73,6 @@ export const configValidationErrors = (config: AppConfig): ReadonlyArray<string>
       `WORKFLOW_RETRY_ATTEMPTS must be an integer >= 0 (got ${config.workflowRetryAttempts})`,
     )
   }
-  if (config.cronExpression.trim().length === 0) {
-    errors.push("CRON_EXPRESSION must be non-empty")
-  }
   if (!Number.isInteger(config.shutdownTimeoutMs) || config.shutdownTimeoutMs < 1) {
     errors.push(`SHUTDOWN_TIMEOUT_MS must be an integer >= 1 (got ${config.shutdownTimeoutMs})`)
   }
@@ -99,7 +95,6 @@ const AppConfigFromEnv = Config.all({
   workflowConcurrency: Config.integer("WORKFLOW_CONCURRENCY").pipe(Config.withDefault(32)),
   workflowNodeTimeoutMs: Config.integer("WORKFLOW_NODE_TIMEOUT_MS").pipe(Config.withDefault(0)),
   workflowRetryAttempts: Config.integer("WORKFLOW_RETRY_ATTEMPTS").pipe(Config.withDefault(0)),
-  cronExpression: Config.string("CRON_EXPRESSION").pipe(Config.withDefault("*/1 * * * *")),
   shutdownTimeoutMs: Config.integer("SHUTDOWN_TIMEOUT_MS").pipe(Config.withDefault(10_000)),
   workerPoolEnabled: Config.boolean("WORKER_POOL_ENABLED").pipe(Config.withDefault(false)),
   workerPoolSize: Config.integer("WORKER_POOL_SIZE").pipe(Config.withDefault(cpuCount())),

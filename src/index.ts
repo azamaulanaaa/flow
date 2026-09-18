@@ -60,7 +60,7 @@ const program: Effect.Effect<
 
   const triggerTags: Array<string> = []
   for (const bundle of workflowBundles) {
-    const triggers = yield* makeBundleTriggers([bundle], config)
+    const triggers = yield* makeBundleTriggers([bundle])
     for (const trigger of triggers) {
       yield* trigger.start
       triggerTags.push(`${trigger.tag} -> ${bundle.workflow.name}`)

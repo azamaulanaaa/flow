@@ -70,7 +70,6 @@ describe("config defaults", () => {
         workerPoolTimeoutMs: 0,
         logLevel: "VERBOSE",
         serviceName: "   ",
-        cronExpression: "   ",
       }
       const errors = configValidationErrors(bad)
       expect(errors.length).toBeGreaterThan(5)

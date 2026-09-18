@@ -53,7 +53,7 @@ run it before `npm start` after editing workflows.
 | `WORKFLOW_CONCURRENCY`        | `32`              | max parallel nodes per DAG level + default node input comes from trigger `input` when node `input` is unset                    |
 | `WORKFLOW_NODE_TIMEOUT_MS`    | `0`               | per-node timeout in ms (`0` = disabled); fails the node with `WorkflowNodeTimeoutError`, retried per `WORKFLOW_RETRY_ATTEMPTS` |
 | `WORKFLOW_RETRY_ATTEMPTS`     | `0`               | extra retry attempts per node after the first try                                                                              |
-| `CRON_EXPRESSION`             | `*/1 * * * *`     | schedule for the bundled cron trigger                                                                                          |
+| `WELCOME_CRON_EXPRESSION`     | `*/1 * * * *`     | schedule for the bundled welcome cron trigger (`CRON_EXPRESSION` kept as legacy fallback)                                      |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_         | OTLP HTTP base (`http://host:4318` -> `.../v1/traces` + `.../v1/logs`); unset = console exporter                               |
 | `SHUTDOWN_TIMEOUT_MS`         | `10000`           | max wait to drain queued + in-flight runs on SIGINT/SIGTERM                                                                    |
 | `WORKER_POOL_ENABLED`         | `false`           | run functions in `node:worker_threads` (true multithreading for CPU-bound work)                                                |
@@ -214,13 +214,18 @@ Like `input` mappers, `when` is data plumbing: keep it pure and total,
 since a throw fails the run.
 
 ```ts
-import { Effect } from "effect"
+import { Config, Effect } from "effect"
 import { makeBundle } from "@/core/workflows/bundle"
 import type { WorkflowDef } from "@/core/workflows/definition"
 import { myFn } from "@/functions/<name>"
 import { otherFn } from "@/functions/<other-name>"
 import { makeCronTrigger } from "@/triggers/cron"
 import { makeOnceTrigger } from "@/triggers/once"
+
+// Each workflow owns its trigger config (prefixed env, e.g. PocketBase URL).
+const schedule = Config.string("MYFLOW_CRON_EXPRESSION").pipe(
+  Config.withDefault("*/1 * * * *"),
+)
 
 export const myWorkflow = {
   name: "my-flow",
@@ -233,11 +238,14 @@ export const myWorkflow = {
 export const myBundle = makeBundle({
   workflow: myWorkflow,
   functions: [myFn, otherFn],
-  makeTriggers: (config) =>
-    Effect.all([
-      makeCronTrigger({ schedule: config.cronExpression, workflow: myWorkflow }),
-      Effect.succeed(makeOnceTrigger({ workflow: myWorkflow })),
-    ]),
+  makeTriggers: () =>
+    Effect.gen(function* () {
+      const cronSchedule = yield* schedule
+      return yield* Effect.all([
+        makeCronTrigger({ schedule: cronSchedule, workflow: myWorkflow }),
+        Effect.succeed(makeOnceTrigger({ workflow: myWorkflow })),
+      ])
+    }),
 }
 ```
 

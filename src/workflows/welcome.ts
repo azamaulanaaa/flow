@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Config, Effect } from "effect"
 import { makeBundle } from "@/core/workflows/bundle"
 import type { WorkflowDef } from "@/core/workflows/definition"
 import { countFunction } from "@/functions/count"
@@ -34,6 +34,18 @@ export const welcomeWorkflow = {
 } as const satisfies WorkflowDef
 
 /**
+ * Schedule for the welcome cron trigger, owned by this workflow.
+ *
+ * Reads `WELCOME_CRON_EXPRESSION`, falling back to legacy `CRON_EXPRESSION`
+ * for existing deploys, then to every minute. Other workflows follow the
+ * same pattern with their own prefixed vars (e.g. `POCKETBASE_URL`).
+ */
+const welcomeSchedule = Config.string("WELCOME_CRON_EXPRESSION").pipe(
+  Config.orElse(() => Config.string("CRON_EXPRESSION")),
+  Config.withDefault("*/1 * * * *"),
+)
+
+/**
  * The `welcome` workflow owns what it runs and what starts it:
  * functions from `src/functions/*`, triggers from `src/triggers/*`.
  *
@@ -50,9 +62,12 @@ export const welcomeWorkflow = {
 export const welcomeBundle = makeBundle({
   workflow: welcomeWorkflow,
   functions: [greetFunction, upperFunction, countFunction, reportFunction],
-  makeTriggers: (config) =>
-    Effect.all([
-      makeCronTrigger({ schedule: config.cronExpression, workflow: welcomeWorkflow }),
-      Effect.succeed(makeOnceTrigger({ workflow: welcomeWorkflow })),
-    ]),
+  makeTriggers: () =>
+    Effect.gen(function* () {
+      const schedule = yield* welcomeSchedule
+      return yield* Effect.all([
+        makeCronTrigger({ schedule, workflow: welcomeWorkflow }),
+        Effect.succeed(makeOnceTrigger({ workflow: welcomeWorkflow })),
+      ])
+    }),
 })

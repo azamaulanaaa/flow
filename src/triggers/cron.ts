@@ -27,12 +27,22 @@ const workflowNameOf = (workflow: string | WorkflowDef): string =>
  * `start`): build it with `Effect.forkScoped` and `submitRun`.
  *
  * @example Wire it into a workflow bundle (OR with other triggers):
+ * Each workflow owns its schedule via a prefixed env var:
  * ```ts
- * makeTriggers: (config) =>
- *   Effect.all([
- *     makeCronTrigger({ schedule: config.cronExpression, workflow: myWorkflow }),
- *     Effect.succeed(makeOnceTrigger({ workflow: myWorkflow })),
- *   ])
+ * import { Config } from "effect"
+ *
+ * const schedule = Config.string("MYFLOW_CRON_EXPRESSION").pipe(
+ *   Config.withDefault("every minute"),
+ * )
+ *
+ * makeTriggers: () =>
+ *   Effect.gen(function* () {
+ *     const cronSchedule = yield* schedule
+ *     return yield* Effect.all([
+ *       makeCronTrigger({ schedule: cronSchedule, workflow: myWorkflow }),
+ *       Effect.succeed(makeOnceTrigger({ workflow: myWorkflow })),
+ *     ])
+ *   })
  * ```
  *
  * Parsing happens at construction (fallible — the `Cron.ParseError`

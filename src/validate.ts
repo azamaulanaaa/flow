@@ -1,5 +1,5 @@
 import { Effect, Layer } from "effect"
-import { AppConfigService, AppConfigLive } from "@/core/config"
+import { AppConfigLive } from "@/core/config"
 import { FunctionRegistry, FunctionRegistryLive, UnknownFunctionError } from "@/core/functions/registry"
 import { WorkflowCatalog, WorkflowCatalogLive } from "@/core/runtime/service"
 import { makeBundleTriggers } from "@/core/workflows/bundle"
@@ -13,7 +13,6 @@ const ValidateLive = Layer.mergeAll(
 )
 
 const program = Effect.gen(function* () {
-  const config = yield* AppConfigService
   const catalog = yield* WorkflowCatalog
   const registry = yield* FunctionRegistry
   let triggerCount = 0
@@ -28,7 +27,7 @@ const program = Effect.gen(function* () {
       }
     }
     // Trigger construction without starting: parses cron expressions.
-    const triggers = yield* makeBundleTriggers([bundle], config)
+    const triggers = yield* makeBundleTriggers([bundle])
     triggerCount += triggers.length
   }
   yield* Effect.log(
