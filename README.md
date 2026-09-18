@@ -142,6 +142,12 @@ Logs show `Shutdown requested (...)` then `Shutdown complete, flushing telemetry
   - `index.ts` – barrel, append bundles to `workflowBundles` (derives `exampleWorkflows` / `exampleFunctions`)
 - `src/index.ts` – composition root only (boots every bundle in `workflowBundles`, no per-workflow wiring)
 - `test/` – Vitest + `@effect/vitest` suites per module
+- **Dependency rule** (locked by `test/deps.test.ts`): code depends inward —
+  `workflows` → `triggers` + `functions`, triggers/functions → nothing
+  app-level (they take the workflow object as a parameter), `core` → `core`
+  only. Runtime data flows the other way (trigger → bus → workflow →
+  functions), decoupled by workflow name — so a trigger never imports a
+  workflow and nothing ever bypasses the bundle.
 
 Internal imports use the `@/` alias for `src/` (extensionless, e.g.
 `@/core/functions/registry`), mapped in `tsconfig.json` and resolved by Vitest,
