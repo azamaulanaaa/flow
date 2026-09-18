@@ -35,7 +35,7 @@ describe("WorkflowBundles", () => {
       const triggers = yield* makeBundleTriggers(workflowBundles)
       const tags = triggers.map((t) => t.tag)
       // Welcome runs on every cron tick and once at boot.
-      expect(tags).toContain("cron:* * * * * *")
+      expect(tags).toContain("cron:*/1 * * * *")
       expect(tags).toContain("once")
     }),
   )

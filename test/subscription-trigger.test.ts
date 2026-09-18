@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Exit, Queue, Scope } from "effect"
+import { Effect, Exit, Option, Queue, Scope } from "effect"
 import { RuntimeBus, RuntimeBusLive } from "@/core/runtime/bus"
 import { makeSubscriptionTrigger } from "@/core/triggers/trigger"
 import { welcomeWorkflow } from "@/workflows/welcome"
@@ -61,7 +61,7 @@ describe("SubscriptionTrigger", () => {
       yield* Scope.close(scope, Exit.void)
       expect(released).toBe(1)
       emits[0]?.({ note: "late" })
-      expect(yield* Queue.poll(bus.queue)).toEqual({ _tag: "None" })
+      expect(Option.isNone(yield* Queue.poll(bus.queue))).toBe(true)
     }).pipe(Effect.provide(TestLayers), Effect.scoped),
   )
 })
