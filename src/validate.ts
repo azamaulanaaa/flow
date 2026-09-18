@@ -1,6 +1,10 @@
 import { Effect, Layer } from "effect"
 import { AppConfigLive } from "@/core/config"
-import { FunctionRegistry, FunctionRegistryLive, UnknownFunctionError } from "@/core/functions/registry"
+import {
+  FunctionRegistry,
+  FunctionRegistryLive,
+  UnknownFunctionError,
+} from "@/core/functions/registry"
 import { WorkflowCatalog, WorkflowCatalogLive } from "@/core/runtime/service"
 import { makeBundleTriggers } from "@/core/workflows/bundle"
 import { planWorkflow } from "@/core/workflows/definition"
@@ -39,7 +43,9 @@ const main = async (): Promise<void> => {
   try {
     await Effect.runPromise(program.pipe(Effect.scoped, Effect.provide(ValidateLive)))
   } catch (error) {
-    console.error(`Validation failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
+    console.error(
+      `Validation failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+    )
     process.exitCode = 1
   }
 }

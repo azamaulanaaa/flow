@@ -8,9 +8,8 @@
  */
 export const newRunId = (prefix: string): string => {
   const clean = prefix.trim().length > 0 ? prefix : "run"
-  const cryptoApi = (
-    globalThis as { readonly crypto?: { readonly randomUUID: () => string } }
-  ).crypto
+  const cryptoApi = (globalThis as { readonly crypto?: { readonly randomUUID: () => string } })
+    .crypto
   // NB: call as a method — detached `randomUUID` loses its `this` (Crypto).
   if (cryptoApi !== undefined && typeof cryptoApi.randomUUID === "function") {
     return `${clean}-${cryptoApi.randomUUID()}`

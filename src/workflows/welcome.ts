@@ -28,7 +28,10 @@ export const welcomeWorkflow = {
       id: "report",
       fn: "report",
       dependsOn: ["upper", "count"],
-      input: (outputs: ReadonlyMap<string, unknown>) => ({ upper: outputs.get("upper"), count: outputs.get("count") }),
+      input: (outputs: ReadonlyMap<string, unknown>) => ({
+        upper: outputs.get("upper"),
+        count: outputs.get("count"),
+      }),
     },
   ],
 } as const satisfies WorkflowDef

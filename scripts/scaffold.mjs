@@ -20,8 +20,7 @@ const fail = (message) => {
 }
 
 const kebab = (value) => /^[a-z][a-z0-9-]*$/.test(value)
-const camel = (kebabName) =>
-  kebabName.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())
+const camel = (kebabName) => kebabName.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())
 const pascal = (kebabName) => camel(kebabName).replace(/^./, (c) => c.toUpperCase())
 
 const writeNew = (file, content) => {
@@ -180,8 +179,14 @@ const registerBundle = (kebabName) => {
   if (match === null) {
     fail("could not find workflowBundles array in src/workflows/index.ts")
   }
-  if (!match[2].split(",").map((s) => s.trim()).includes(bundle)) {
-    const items = match[2].trim().length === 0 ? bundle : `${match[2].replace(/\s+$/, "")}, ${bundle}`
+  if (
+    !match[2]
+      .split(",")
+      .map((s) => s.trim())
+      .includes(bundle)
+  ) {
+    const items =
+      match[2].trim().length === 0 ? bundle : `${match[2].replace(/\s+$/, "")}, ${bundle}`
     content = content.replace(arrayPattern, `$1${items}$3`)
   }
   writeFileSync(index, content)
@@ -200,12 +205,16 @@ if (kind === "function") {
   const file = src(path.join("functions", `${name}.ts`))
   writeNew(file, functionTemplate(name))
   addBarrelExport(src(path.join("functions", "index.ts")), name)
-  console.log(`next: add ${camel(name)}Function to your workflow bundle's functions, then npm run validate`)
+  console.log(
+    `next: add ${camel(name)}Function to your workflow bundle's functions, then npm run validate`,
+  )
 } else if (kind === "trigger") {
   const file = src(path.join("triggers", `${name}.ts`))
   writeNew(file, triggerTemplate(name))
   addBarrelExport(src(path.join("triggers", "index.ts")), name)
-  console.log(`next: reference make${pascal(name)}Trigger in your workflow bundle's makeTriggers, then npm run validate`)
+  console.log(
+    `next: reference make${pascal(name)}Trigger in your workflow bundle's makeTriggers, then npm run validate`,
+  )
 } else if (kind === "workflow") {
   const fnFlag = rest.indexOf("--fn")
   const fnName = fnFlag === -1 ? "greet" : rest[fnFlag + 1]

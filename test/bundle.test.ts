@@ -92,7 +92,9 @@ describe("WorkflowBundles", () => {
       expect(bundleFunctions([b1, b1]).length).toBe(1)
       const conflicted = bundleFunctions([b1, b2])
       expect(conflicted.length).toBe(2)
-      const error = yield* Effect.flip(Layer.build(FunctionRegistryLive(conflicted)).pipe(Effect.scoped))
+      const error = yield* Effect.flip(
+        Layer.build(FunctionRegistryLive(conflicted)).pipe(Effect.scoped),
+      )
       expect((error as { _tag: string })._tag).toBe("DuplicateFunctionError")
     }),
   )

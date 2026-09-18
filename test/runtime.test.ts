@@ -2,11 +2,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, PubSub, Queue } from "effect"
 import { FunctionRegistryLive, makeFunction } from "@/core/functions/registry"
 import { RuntimeBus, RuntimeBusLive, submitRun } from "@/core/runtime/bus"
-import {
-  DuplicateWorkflowError,
-  WorkflowCatalogLive,
-  startRuntime,
-} from "@/core/runtime/service"
+import { DuplicateWorkflowError, WorkflowCatalogLive, startRuntime } from "@/core/runtime/service"
 import type { WorkflowDef } from "@/core/workflows/definition"
 
 const TestRegistryLive = FunctionRegistryLive([makeFunction("ping", () => Effect.succeed("pong"))])

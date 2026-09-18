@@ -172,7 +172,7 @@ export const myFn = makeFunction("my-fn", (input: { who: string }) =>
 )
 ```
 
- Then re-export from `src/functions/index.ts` (`export * from "./<name>"`)
+Then re-export from `src/functions/index.ts` (`export * from "./<name>"`)
 and list the function in your workflow's bundle (`functions: [...]`).
 Name must match `fn:` used in workflows.
 

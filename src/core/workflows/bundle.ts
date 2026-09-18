@@ -58,10 +58,7 @@ export const bundleFunctions = (
 export const makeBundleTriggers = (
   bundles: ReadonlyArray<WorkflowBundle>,
 ): Effect.Effect<ReadonlyArray<Trigger>, unknown> =>
-  Effect.map(
-    Effect.all(bundles.map((b) => b.makeTriggers())),
-    (lists) => lists.flat(),
-  )
+  Effect.map(Effect.all(bundles.map((b) => b.makeTriggers())), (lists) => lists.flat())
 
 /**
  * Define a workflow bundle with static checks.
@@ -79,12 +76,10 @@ export const makeBundleTriggers = (
  * })
  * ```
  */
-export const makeBundle = <const Fns extends ReadonlyArray<FunctionDef<any, any, any>>>(
-  bundle: {
-    readonly workflow: WorkflowDef & {
-      readonly nodes: ReadonlyArray<WorkflowNode & { readonly fn: Fns[number]["name"] }>
-    }
-    readonly functions: Fns
-    readonly makeTriggers: () => Effect.Effect<ReadonlyArray<Trigger>, unknown>
-  },
-): WorkflowBundle => bundle
+export const makeBundle = <const Fns extends ReadonlyArray<FunctionDef<any, any, any>>>(bundle: {
+  readonly workflow: WorkflowDef & {
+    readonly nodes: ReadonlyArray<WorkflowNode & { readonly fn: Fns[number]["name"] }>
+  }
+  readonly functions: Fns
+  readonly makeTriggers: () => Effect.Effect<ReadonlyArray<Trigger>, unknown>
+}): WorkflowBundle => bundle
