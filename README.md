@@ -53,7 +53,7 @@ run it before `npm start` after editing workflows.
 | `WORKFLOW_CONCURRENCY`        | `32`              | max parallel nodes per DAG level + default node input comes from trigger `input` when node `input` is unset                    |
 | `WORKFLOW_NODE_TIMEOUT_MS`    | `0`               | per-node timeout in ms (`0` = disabled); fails the node with `WorkflowNodeTimeoutError`, retried per `WORKFLOW_RETRY_ATTEMPTS` |
 | `WORKFLOW_RETRY_ATTEMPTS`     | `0`               | extra retry attempts per node after the first try                                                                              |
-| `WELCOME_CRON_EXPRESSION`     | `*/1 * * * *`     | schedule for the bundled welcome cron trigger (`CRON_EXPRESSION` kept as legacy fallback)                                      |
+| `WELCOME_CRON_EXPRESSION`     | `*/1 * * * *`     | schedule for the bundled welcome cron trigger                                                                                  |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_         | OTLP HTTP base (`http://host:4318` -> `.../v1/traces` + `.../v1/logs`); unset = console exporter                               |
 | `SHUTDOWN_TIMEOUT_MS`         | `10000`           | max wait to drain queued + in-flight runs on SIGINT/SIGTERM                                                                    |
 | `WORKER_POOL_ENABLED`         | `false`           | run functions in `node:worker_threads` (true multithreading for CPU-bound work)                                                |

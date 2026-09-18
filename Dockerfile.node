@@ -1,6 +1,6 @@
 # Node runtime (primary) — builds the tsup bundle, runs the compiled output.
 # Build:  docker build -f Dockerfile.node -t workflow-runner:node .
-# Run:    docker run --rm -e CRON_EXPRESSION="*/1 * * * *" workflow-runner:node
+# Run:    docker run --rm -e WELCOME_CRON_EXPRESSION="*/1 * * * *" workflow-runner:node
 FROM node:22-slim AS builder
 
 WORKDIR /app
@@ -33,7 +33,7 @@ ENV SERVICE_NAME=workflow-runner \
     WORKFLOW_CONCURRENCY=32 \
     WORKFLOW_NODE_TIMEOUT_MS=0 \
     WORKFLOW_RETRY_ATTEMPTS=0 \
-    CRON_EXPRESSION="*/1 * * * *" \
+    WELCOME_CRON_EXPRESSION="*/1 * * * *" \
     SHUTDOWN_TIMEOUT_MS=10000 \
     WORKER_POOL_ENABLED=false \
     WORKER_POOL_TIMEOUT_MS=30000

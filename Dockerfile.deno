@@ -1,7 +1,7 @@
 # Deno runtime (experimental) — runs TS directly via deno.json import map + sloppy-imports.
 # Mirrors `deno task dev` (deno run --allow-all src/index.ts).
 # Build:  docker build -f Dockerfile.deno -t workflow-runner:deno .
-# Run:    docker run --rm -e CRON_EXPRESSION="*/1 * * * *" workflow-runner:deno
+# Run:    docker run --rm -e WELCOME_CRON_EXPRESSION="*/1 * * * *" workflow-runner:deno
 FROM denoland/deno:2 AS runner
 
 WORKDIR /app
@@ -21,7 +21,7 @@ ENV SERVICE_NAME=workflow-runner \
     WORKFLOW_CONCURRENCY=32 \
     WORKFLOW_NODE_TIMEOUT_MS=0 \
     WORKFLOW_RETRY_ATTEMPTS=0 \
-    CRON_EXPRESSION="*/1 * * * *" \
+    WELCOME_CRON_EXPRESSION="*/1 * * * *" \
     SHUTDOWN_TIMEOUT_MS=10000 \
     WORKER_POOL_ENABLED=false \
     WORKER_POOL_TIMEOUT_MS=30000

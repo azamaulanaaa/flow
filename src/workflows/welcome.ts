@@ -39,12 +39,11 @@ export const welcomeWorkflow = {
 /**
  * Schedule for the welcome cron trigger, owned by this workflow.
  *
- * Reads `WELCOME_CRON_EXPRESSION`, falling back to legacy `CRON_EXPRESSION`
- * for existing deploys, then to every minute. Other workflows follow the
- * same pattern with their own prefixed vars (e.g. `POCKETBASE_URL`).
+ * Reads `WELCOME_CRON_EXPRESSION`, defaulting to every minute. Other
+ * workflows follow the same pattern with their own prefixed vars
+ * (e.g. `POCKETBASE_URL`).
  */
 const welcomeSchedule = Config.string("WELCOME_CRON_EXPRESSION").pipe(
-  Config.orElse(() => Config.string("CRON_EXPRESSION")),
   Config.withDefault("*/1 * * * *"),
 )
 

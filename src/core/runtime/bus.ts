@@ -28,8 +28,8 @@ export type RunEvent =
       readonly runId: string
       readonly workflow: string
       readonly reason: string
-      /** Machine-readable failure tag (e.g. `UnknownFunctionError`, `WorkflowNodeTimeoutError`, `UnknownWorkflow`). Optional for backward compatibility. */
-      readonly causeTag?: string
+      /** Machine-readable failure tag (e.g. `UnknownFunctionError`, `WorkflowNodeTimeoutError`, `UnknownWorkflow`). */
+      readonly causeTag: string
     }
 
 export interface RuntimeBusShape {
