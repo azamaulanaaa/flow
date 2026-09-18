@@ -267,7 +267,12 @@ A trigger is any module that follows the `Trigger` signature from
 Built-ins (`cron.ts`, `once.ts`) double as examples — copy one to add
 a kind (webhook, queue consumer, ...), re-export from
 `src/triggers/index.ts`, and reference it in your workflow's
-`makeTriggers` alongside the others (OR semantics).
+`makeTriggers` alongside the others (OR semantics). For external
+subscriptions (PocketBase realtime, SSE, ...), use
+`makeSubscriptionTrigger` from the same module: its `subscribe`
+returns the release Effect, so scope close (SIGINT/SIGTERM) always
+unsubscribes before the run-queue drain — see
+`test/subscription-trigger.test.ts`.
 
 Static checks guard the wiring end to end: `makeBundle` rejects
 unknown `fn:` names, trigger factories accept the workflow object so
